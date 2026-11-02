@@ -1,0 +1,7 @@
+.streamlit/secrets.toml
+registro_ia.jsonl
+__pycache__/
+.venv/
+pruebas/
+desafio1/datos/personas_mayores_sinteticas.csv
+desafio1/datos/contactos_sinteticos.csv

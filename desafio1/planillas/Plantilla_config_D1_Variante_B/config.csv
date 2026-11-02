@@ -1,0 +1,22 @@
+campo,valor,qué es,ejemplo
+usuario,Coordinadora de un equipo comunitario de 6 monitores y voluntarios que acompaña a 120 personas mayores en una comuna. Tiene poco tiempo para leer todas las notas.,"A quién apoya la IA. Sean específicos: rol, cuántas personas acompaña, tiempo disponible.",Una hija que coordina por WhatsApp a tres hermanos que cuidan a su papá.
+tono,"Profesional, cálido y concreto. Sin jerga técnica.",Cómo habla la IA.,"Directo, como una colega con experiencia."
+largo_respuesta,Cada sección en máximo 3 frases.,Qué tan larga debe ser la respuesta.,Máximo 2 frases por sección.
+ejemplos,"1. Lo que muestran los registros: desde la semana 9 no contesta el teléfono y en la semana 10 la vecina contó que no sale de la casa. Vive sola. Los registros no dicen por qué.
+2. Apoyos posibles: [S02] Programa Vínculos, porque vive sola y está cada vez más aislada.
+3. Sugerencia para el próximo contacto: visitarla esta semana, preguntarle cómo ha estado y qué le gustaría hacer, sin presionarla.","1 a 3 ejemplos de una respuesta ideal, escritos por ustedes. La IA imita su estilo, no sus datos.",Escriban aquí una ficha ideal para su usuario.
+instrucciones_extra,"En la sugerencia, indica si conviene que vaya el mismo monitor de siempre.",Reglas propias del equipo. No pueden contradecir las reglas fijas de la app.,Si la persona no tiene teléfono sugiere siempre una visita.
+titulo_app,RedCuida · ¿A quién visitamos esta semana?,Título que aparece arriba en la app.,Panel de cuidados de la semana
+texto_bienvenida,"Ordenamos los registros de seguimiento para ver **a quién le está cambiando algo**, explicamos por qué y preparamos el próximo contacto. **Tú decides**.",Mensaje de bienvenida bajo el título.,"Tu lista de la semana, con el porqué de cada persona."
+texto_boton,✨ Preparar próximo contacto,Texto del botón principal.,Preparar ficha
+visitas_semana,15,Cuántas personas puede visitar o llamar el equipo esta semana (5 a 40). Las alertas no cuentan en este cupo.,10
+peso_caida,5,Cuánto pesa una caída reciente en el orden (0 a 10). Las caídas también generan una alerta.,6
+peso_desorientacion,3,"Peso de olvidos o desorientación (0 a 10).",4
+peso_come_poco,2,Peso de comer poco o tener la despensa vacía (0 a 10).,3
+peso_animo_bajo,2,Peso de tristeza o desánimo (0 a 10).,2
+peso_medicamentos,2,Peso de problemas para tomar los remedios (0 a 10).,3
+peso_aislamiento,2,Peso de no salir de la casa o dejar sus actividades (0 a 10).,3
+peso_cuidador_agotado,3,Peso del agotamiento de quien cuida (0 a 10).,4
+peso_sospecha_maltrato,5,Peso de una sospecha de maltrato (0 a 10). También genera una alerta.,5
+peso_sin_contacto,1.5,"Peso por cada semana sin un contacto logrado (0 a 10). Sirve para no olvidar a quien no contesta.",2
+peso_vive_sola,1,Peso de vivir sola (0 a 10).,0

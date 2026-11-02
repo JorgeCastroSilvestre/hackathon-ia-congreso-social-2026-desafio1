@@ -1,0 +1,6 @@
+streamlit==1.50.0
+pandas>=2.2
+scikit-learn>=1.5
+openpyxl>=3.1
+requests>=2.31
+gspread>=6.0
