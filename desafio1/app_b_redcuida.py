@@ -153,6 +153,33 @@ OPCIONES = ["Visitar esta semana", "Llamar esta semana", "Activar protocolo", "D
 N.encabezado(cfg["titulo_app"], cfg["texto_bienvenida"],
              [f"{st.session_state.get('_equipo')}", f"Usuario: {N.corto(cfg.get('usuario'), 70)}", f"Cupo semanal: {CUPO} personas"])
 N.aviso_ia()
+N.aviso_demo()
+N.recorrido(
+    ["**Explore la lista** de la semana: primero las alertas, después el resto por puntaje.",
+     "**Entienda el puntaje** en la columna «¿Por qué aparece?» y en la fórmula bajo la tabla.",
+     "**Abra la ficha** de una persona, revise la bitácora y presione «Preparar próximo contacto».",
+     "**Registre una decisión humana** después de revisar y, si hace falta, corregir la propuesta.",
+     "**Observe la equidad** en la sección 3: a quién detecta la lista y a quién no."],
+    ["La IA puede equivocarse: la propuesta debe revisarse antes de usarla.",
+     "El puntaje solo lee las casillas marcadas; las notas pueden tener señales adicionales.",
+     "Menos registros no significa necesariamente menos necesidad.",
+     "Bajo la propuesta se indica si es preparada de ejemplo o generada por IA.",
+     "La decisión final siempre es humana."])
+N.como_adaptar(
+    ["**Usuario, tono y largo de respuesta** (`usuario`, `tono`, `largo_respuesta`).",
+     "**Ejemplos** de ficha ideal (`ejemplos`) e **instrucciones propias** (`instrucciones_extra`).",
+     "**Pesos del puntaje** (`peso_caida`, `peso_aislamiento`, `peso_sin_contacto` y los demás) y **cupo semanal** (`visitas_semana`).",
+     "**Textos de pantalla**: título, bienvenida y botón.",
+     "**Servicios reales de su comuna** en la pestaña `servicios_extra`, con fuente oficial."],
+    ["Reglas fijas del asistente: describir solo lo que dicen los registros, sin diagnósticos ni indicaciones de medicamentos.",
+     "Las alertas de caída y sospecha de maltrato no esperan cupo.",
+     "Validación de la propuesta, también después de editarla.",
+     "Aviso de IA, registro, límite de consultas y decisión humana obligatoria."],
+    ["**Interfaz**: `desafio1/app_b_redcuida.py`, sección «pantalla».",
+     "**Configuración**: `desafio1/planillas/…/config.csv`, leída con `N.configuracion`.",
+     "**Puntaje**: función `preparar` en la app; **datos sintéticos**: `desafio1/datos/generar_registros.py`.",
+     "**IA**: clase `IA` en `comun/nucleo_st.py`; el prompt es `REGLAS` y `PETICION` en la app.",
+     "**Protecciones**: función `validar` en la app y `comun/validaciones.py`."])
 n_alertas = int((cola.alerta != "").sum())
 hechas = int((cola.decision != "Pendiente").sum())
 m1, m2, m3, m4 = st.columns(4)
@@ -242,6 +269,7 @@ with t2:
                 N.tarjeta("3 · Sugerencia para el próximo contacto", N.md(sec[2]), "warn" if prob else "ok")
             with st.container(border=True):
                 st.markdown("#### Decisión humana (obligatoria)")
+                st.caption("Decisión simulada: registrarla no programa visitas, llamadas ni protocolos reales.")
                 dec = st.radio("¿Qué decides?", OPCIONES, index=None, key=f"dec_{sel}", horizontal=True)
                 util = st.select_slider("¿La propuesta te ahorró trabajo?", ["Nada", "Poco", "Algo", "Mucho"], value="Algo", key=f"ut_{sel}")
                 nota = st.text_input("Nota (opcional)", key=f"nota_{sel}")

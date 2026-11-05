@@ -66,6 +66,25 @@ Con la configuración base:
 - **A:** la red de seguridad no es perfecta. En pruebas, la lista de frases reconoció 12 de 12 frases de maltrato o emergencia, con 1 falso positivo en 8 frases parecidas ("me grita el vendedor de la feria"). La IA reconoció formas indirectas de abuso económico y de sentirse una carga, pero no un caso de abandono ("me dejaron sola dos semanas y no puedo cocinar"). Su respuesta además varía de una vez a otra.
 - **A y B:** el catálogo es genérico; la forma de acceso de cada servicio **debe verificarse** con fuentes oficiales y con la organización beneficiaria antes del evento.
 
+## Uso como demostración educativa
+- **Modalidad básica:** la demo funciona sin Google Sheets y sin claves de IA. Los casos y decisiones quedan en memoria y se borran al reiniciar la app; así lo indica el aviso visible en pantalla. Sin clave de IA, las respuestas son preparadas de ejemplo y la app lo indica bajo cada una.
+- **Simulación:** ninguna acción contacta a personas ni activa servicios reales. Los mensajes de los protocolos conservan las vías de ayuda (Fono Mayor, SAMU, *4141, Salud Responde, Carabineros), pero aclaran que en la demo no se contacta a nadie.
+- **Guía en pantalla:** cada app muestra un *recorrido sugerido* de cinco pasos, sus *límites* y un panel plegable *Cómo adaptar esta demo*, con lo que los equipos pueden cambiar, lo que deben conservar y dónde está cada parte del código (interfaz, configuración, IA y protecciones).
+
+## Extensión avanzada opcional: guardar en una planilla central
+Solo si una instalación necesita conservar casos y decisiones entre reinicios.
+1. Crear una planilla de Google y una cuenta de servicio con permiso de edición sobre ella.
+2. Crear en la planilla una pestaña llamada `estado_d1_v1` con la primera fila: `evento_id, fecha_utc, app, equipo_codigo, coleccion, elemento_id, datos_json`.
+3. En los secrets de cada app, completar `[registro] sheet_id` y el bloque `[gcp_service_account]`.
+
+Con esa configuración el aviso cambia a "se guardan en una planilla central" y la app solo confirma un caso o una decisión después de guardarlo. El código está en `comun/persistencia.py` y en `estado_equipo` y `guardar_elemento` de `comun/nucleo_st.py`. Sin esa configuración, nada de esto se activa.
+
+## Pruebas
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+`tests/test_seguridad.py` cubre protocolos, validaciones y persistencia; `tests/test_streamlit.py` y `tests/test_educativo.py` recorren las apps con `AppTest` en modo demostración. La navegación por secciones (`N.pestanas`) se reemplaza por contenedores dentro de las pruebas, porque `AppTest` no maneja ese control.
+
 ## Pendiente para la versión final
 Rutas de mejora: listas en [Rutas_de_mejora_Variante_A.md](Rutas_de_mejora_Variante_A.md) y [Rutas_de_mejora_Variante_B.md](Rutas_de_mejora_Variante_B.md), 6 por variante.
 

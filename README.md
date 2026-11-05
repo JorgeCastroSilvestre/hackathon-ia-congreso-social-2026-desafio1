@@ -2,7 +2,7 @@
 
 Plantillas del Desafío 1 (IA para el cuidado comunitario de personas mayores). Cada equipo recibe una app que **ya funciona** y la adapta a un usuario real desde una planilla de Google, sin programar. Usa la misma base técnica que las plantillas del [Desafío 2](https://github.com/Giocrisrai/hackathon-ia-congreso-social-2026-desafio2): código y clave por equipo, pestaña `config`, pestaña `servicios_extra` con fila EJEMPLO, botón "Recargar configuración" y un límite de consultas a la IA por equipo.
 
-**Versión demo. Todos los datos son ficticios.**
+**Demostraciones educativas. Todos los datos son ficticios.** Estas dos apps son una **referencia** para que los equipos las exploren, las imiten o copien lo que les sirva para su propio desarrollo. No son herramientas operativas de atención: ninguna acción contacta a personas ni activa servicios reales.
 
 | Variante | Para quién | Qué hace |
 |---|---|---|

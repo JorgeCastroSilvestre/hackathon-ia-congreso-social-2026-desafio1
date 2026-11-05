@@ -98,13 +98,14 @@ MARCA = re.compile(r"\[(MALTRATO|EMERGENCIA)\]")
 MENSAJE_MALTRATO = ("Gracias por contarlo. Nadie tiene derecho a maltratar, amenazar ni quitarle su dinero a una persona mayor.\n\n"
                     "• **Fono Mayor 800 400 035** (gratuito, SENAMA): orienta y recibe denuncias de maltrato, abandono o abuso económico.\n"
                     "• Si hay peligro ahora: **133 (Carabineros)**.\n\n"
-                    "Avisé a la red de apoyo para que una persona se comunique, con cuidado y respetando su decisión. "
-                    "_(En la hackathon es una simulación: no se contacta a nadie real.)_")
+                    "_En un servicio real, este caso pasaría a una persona de la red de apoyo, que se comunicaría con cuidado y respetando su decisión. "
+                    "En esta demostración solo queda en la bandeja simulada: no se contacta a nadie._")
 MENSAJE_EMERGENCIA = ("Esto necesita ayuda de una persona ahora, no de una IA.\n\n"
                       "• **Emergencia de salud** (caída con dolor fuerte, dolor en el pecho, dificultad para respirar o hablar): llame al **131 (SAMU)**.\n"
                       "• Si piensa en hacerse daño: **Línea de Prevención del Suicidio \\*4141** (gratuita) o **Salud Responde 600 360 7777**.\n"
                       "• Peligro inmediato: **133 (Carabineros)**.\n\n"
-                      "Avisé a la red de apoyo para que una persona se comunique. _(En la hackathon es una simulación: no se contacta a nadie real.)_")
+                      "_En un servicio real, este caso pasaría de inmediato a una persona de la red de apoyo. "
+                      "En esta demostración solo queda en la bandeja simulada: no se contacta a nadie._")
 def protocolo(t):
     t = (t or "").lower()
     if any(re.search(p, t) for p in _EMERGENCIA) or (N.crisis(t) and not any(re.search(p, t) for p in _MALTRATO)): return "CRISIS"
@@ -194,6 +195,31 @@ def enviar(texto):
 N.encabezado(cfg["titulo_app"], cfg["texto_bienvenida"],
              [f"{st.session_state.get('_equipo')}", f"Usuario: {N.corto(cfg.get('usuario'), 70)}", f"Hasta {MAX_TURNOS} mensajes", f"Letra {cfg.get('tamano_letra', 'grande')}"])
 N.aviso_ia()
+N.aviso_demo()
+N.recorrido(
+    ["**Elija un perfil ficticio** en «Simular como» (por ejemplo, P5 Elena) y lea su contexto.",
+     "**Acepte el consentimiento** y presione «Comenzar».",
+     "**Converse** actuando el papel. Pruebe también una frase de riesgo, como «mi sobrino cobra mi pensión y no me da plata».",
+     "**Termine la conversación** y revise la hoja de ruta y el servicio sugerido.",
+     "**Abra la bandeja** y observe la decisión humana: la IA no decide ni contacta a nadie."],
+    ["La IA puede equivocarse: las respuestas deben revisarse.",
+     "La lista fija de frases de riesgo no reconoce todas las formas de decirlo.",
+     "Bajo cada respuesta se indica si es preparada de ejemplo o generada por IA.",
+     "La decisión final siempre es humana."])
+N.como_adaptar(
+    ["**Usuario, tono y largo de respuesta** (`usuario`, `tono`, `largo_respuesta`).",
+     "**Ejemplos** de respuesta ideal (`ejemplos`) e **instrucciones propias** (`instrucciones_extra`).",
+     "**Textos de pantalla**: título, bienvenida, botón, mensaje inicial y consentimiento.",
+     "**Accesibilidad**: `tamano_letra`, `respuestas_rapidas` y `max_turnos`.",
+     "**Servicios reales de su comuna** en la pestaña `servicios_extra`, con fuente oficial."],
+    ["Reglas fijas del asistente: sin diagnósticos, sin indicaciones de medicamentos y sin promesas de beneficios.",
+     "Protocolos de maltrato y emergencia, con sus teléfonos de ayuda.",
+     "Validaciones de salud y de lenguaje infantilizante.",
+     "Consentimiento, aviso de IA, registro, límite de consultas y decisión humana en la bandeja."],
+    ["**Interfaz**: `desafio1/app_a_conectamayor.py`, sección «pantalla».",
+     "**Configuración**: `desafio1/planillas/…/config.csv`, leída con `N.configuracion`.",
+     "**IA**: clase `IA` en `comun/nucleo_st.py`; los prompts son `REGLAS` y `CLASIFICAR` en la app.",
+     "**Protecciones**: función `protocolo` y listas `_MALTRATO` y `_EMERGENCIA` en la app, y `comun/validaciones.py`."])
 if ss.get("_casos_por_guardar"):
     st.error("Hay casos pendientes de guardar. Mantenga esta sesión abierta hasta confirmarlos.")
     st.download_button("Respaldar casos sin confirmar", json.dumps(list(ss["_casos_por_guardar"].values()), ensure_ascii=False, indent=2),
@@ -312,7 +338,8 @@ with t1:
                     st.success("Respuesta registrada. En esta demostración no se contacta a nadie real.")
             st.button("Nueva conversación", on_click=reiniciar, disabled=bool(ss.get("_casos_por_guardar")))
 with t2:
-    st.caption("Aquí llegan los casos. **La IA no contacta a nadie:** una persona de la red de apoyo revisa y decide. La bandeja la comparten todos los integrantes del equipo.")
+    st.caption("Aquí llegan los casos. **La IA no contacta a nadie:** una persona de la red de apoyo revisa y decide. La bandeja la comparten todos los integrantes del equipo. "
+               "**Bandeja simulada:** registrar una decisión no llama ni visita a nadie.")
     if not bandeja:
         N.tarjeta("La bandeja está vacía", "Cuando alguien termine una conversación y pida contacto, o se active un protocolo fijo, el caso aparecerá aquí.", "gray")
     else:

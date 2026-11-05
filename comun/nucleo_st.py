@@ -20,7 +20,7 @@ import persistencia as P
 AVISO_IA = ("**Esta herramienta usa inteligencia artificial.** Puede equivocarse y **no reemplaza el criterio "
             "de una persona**: la decisión final siempre es humana. Lo que se consulta y responde queda registrado "
             "para la revisión de la hackathon. Prototipo con datos ficticios.")
-AVISO_DEMO = ("Se muestra una respuesta de demostración: la IA no respondió. Esperen un minuto y prueben de nuevo; "
+AVISO_DEMO = ("Se muestra una respuesta preparada de ejemplo: la IA no respondió. Esperen un minuto y prueben de nuevo; "
               "si persiste, avisen a su mentor.")
 # Proveedores compatibles con la API de OpenAI. Para sumar otro (por ejemplo, si la organización consigue una nueva clave)
 # basta con agregarlo en secrets: [ia.<nombre>] api_key, modelos = [...] y, si no está en esta lista, url = ".../chat/completions".
@@ -87,8 +87,8 @@ def estado_equipo(clave: str) -> dict:
         anterior = dict(g["equipos"].setdefault(_clave_estado(clave), {}))
     try:
         ws = _hoja_estado()
-        if ws is None:
-            st.warning("Modo temporal: sin planilla central, los casos y decisiones se pierden al reiniciar. Descargue el respaldo antes de salir.")
+        if ws is None:  # modalidad básica de la demo: estado temporal en memoria (lo explica aviso_demo)
+            st.session_state["_modo_estado"] = "temporal"
             return anterior
         datos = P.reconstruir(ws.get_all_values(), st.session_state.get("_app"), identidad_equipo(), clave)
         if clave == "bandeja":
@@ -100,7 +100,7 @@ def estado_equipo(clave: str) -> dict:
         with g["lock"]:
             g["equipos"][_clave_estado(clave)] = datos
         st.session_state.pop("_error_estado", None)
-        st.caption("Casos y decisiones recuperados de la planilla central.")
+        st.session_state["_modo_estado"] = "central"
         return dict(datos)
     except Exception:
         st.session_state["_error_estado"] = True
@@ -194,6 +194,7 @@ h1,h2,h3,h4{font-family:'Source Serif 4',Georgia,serif !important;color:var(--az
 .card{background:#fff;border:1px solid var(--borde);border-radius:6px;padding:14px 18px;margin:0 0 12px 0;color:var(--tinta)}
 .card .c-tit{font-weight:700;font-size:1rem;margin:0 0 6px 0;color:var(--azul)}
 .card .c-txt{font-size:.96rem;line-height:1.55;color:var(--tinta)}
+.card.guia{padding:10px 16px}.card.guia .c-txt,.card.guia .c-txt li{font-size:.88rem !important;line-height:1.45 !important}
 .card.ok{border-left:4px solid #2E7D4F}.card.warn{border-left:4px solid var(--oro)}.card.bad{border-left:4px solid #B3261E}.card.info{border-left:4px solid var(--azul2)}.card.gray{border-left:4px solid #A3ABB8}
 .badge{display:inline-block;border-radius:4px;padding:2px 9px;font-size:.78rem;font-weight:600;margin:0 6px 5px 0;white-space:nowrap}
 .b-green{background:#E3F1E8;color:#1F5C38}.b-amber{background:var(--oro-claro);color:#7A5A00}.b-red{background:#F8E1DF;color:#8C1D18}.b-teal{background:var(--azul-claro);color:var(--azul)}.b-gray{background:#EEF0F3;color:#3D4554}
@@ -279,6 +280,41 @@ def iniciar(app_id: str, titulo: str, icono: str,
 def aviso_ia():
     st.info(AVISO_IA)
 
+# ------------------------------------------------------------------ guía educativa (demo)
+AVISO_DEMO_TEMPORAL = "Solo utiliza datos ficticios. Los casos y decisiones temporales se borran al reiniciar."
+AVISO_DEMO_CENTRAL = "Solo utiliza datos ficticios. Los casos y decisiones de esta instalación se guardan en una planilla central."
+AVISO_SIMULACION = "Ninguna acción de esta demo contacta a personas ni activa servicios reales: todo es una simulación."
+
+def aviso_demo():
+    """Aviso breve y visible. Se llama después de leer el estado, para no decir 'temporal' si de verdad se guarda."""
+    central = st.session_state.get("_modo_estado") == "central"
+    tarjeta("Demostración educativa", md(AVISO_DEMO_CENTRAL if central else AVISO_DEMO_TEMPORAL) + "<br>" + md(AVISO_SIMULACION), "warn guia")
+
+def recorrido(pasos, limites):
+    """Recorrido sugerido (pasos numerados) y límites de la demo, lado a lado y sin saturar la pantalla."""
+    c1, c2 = st.columns([1.6, 1], gap="medium")
+    with c1:
+        lista = "".join(f"<li>{md(p)}</li>" for p in pasos)
+        tarjeta("Recorrido sugerido", f"<ol style='margin:0;padding-left:1.2em'>{lista}</ol>", "info guia")
+    with c2:
+        lista = "".join(f"<li>{md(l)}</li>" for l in limites)
+        tarjeta("Límites de esta demo", f"<ul style='margin:0;padding-left:1.1em'>{lista}</ul>", "gray guia")
+
+def como_adaptar(editables, protecciones, codigo):
+    """Panel plegable: qué pueden cambiar los equipos, qué deben conservar y dónde está cada parte en el código."""
+    with st.expander("Cómo adaptar esta demo"):
+        c1, c2 = st.columns(2, gap="medium")
+        with c1:
+            st.markdown("**Pueden adaptar** (desde su copia de la planilla, sin programar)")
+            st.markdown("\n".join(f"- {e}" for e in editables))
+        with c2:
+            st.markdown("**Deben conservar** (protecciones fijas)")
+            st.markdown("\n".join(f"- {p}" for p in protecciones))
+        st.markdown("**Dónde está cada parte, si quieren crear su propia versión**")
+        st.markdown("\n".join(f"- {c}" for c in codigo))
+        st.caption("Pueden copiar o imitar cualquier parte de esta demo para su propio desarrollo. "
+                   "Si construyen otra herramienta, mantengan protecciones equivalentes.")
+
 def acceso() -> str:
     """Código y clave de equipo, guardados en secrets:
     [equipos.E01]  nombre = "Equipo 01"  clave = "..."   (sin secrets: código 'demo', clave 'demo')."""
@@ -291,6 +327,8 @@ def acceso() -> str:
                    st.session_state.get("_subtitulo_acceso", "Ninguno se queda atrás · Hackathon IA Aplicada · Congreso Social UC 2026"),
                    [st.session_state.get("_chip_acceso", "Desafío 2 · Educación")])
         aviso_ia()
+        tarjeta("Demostración educativa", md("Esta plataforma es una **referencia** para que los equipos la exploren, la imiten o copien lo que les sirva. "
+                                              "Solo utiliza datos ficticios.") + "<br>" + md(AVISO_SIMULACION), "warn")
         with st.container(border=True):
             st.markdown("#### Ingreso del equipo")
             c1, c2 = st.columns(2)
@@ -500,14 +538,15 @@ class IA:
 def aviso_si_demo(info: dict):
     modo = str(info.get("modo", ""))
     if modo == "real":
-        st.caption(f"Respondió {info.get('proveedor')} · {str(info.get('modelo', '')).split('/')[-1]} · {info.get('latencia_s', '?')} s")
+        st.caption(f"Respuesta generada por IA conectada: {info.get('proveedor')} · {str(info.get('modelo', '')).split('/')[-1]} · "
+                   f"{info.get('latencia_s', '?')} s. Puede equivocarse: revísala.")
         return
     if not modo:
         return
     if "límite" in modo:
-        st.warning("Se alcanzó el límite de consultas del equipo: se muestra una respuesta de demostración. Avisen a su mentor.")
+        st.warning("Se alcanzó el límite de consultas del equipo: se muestra una respuesta preparada de ejemplo, no generada por IA. Avisen a su mentor.")
     elif "sin claves" in modo:
-        st.caption("Respuesta de demostración (instalación sin conexión a la IA).")
+        st.caption("Respuesta preparada de ejemplo: esta instalación no tiene IA conectada.")
     else:
         st.warning(AVISO_DEMO)
 
@@ -530,7 +569,7 @@ MENSAJE_CRISIS = (
     "Gracias por contarlo. Lo que describes es importante y mereces apoyo de una persona ahora, no de una IA.\n\n"
     "• Si piensas en hacerte daño, llama a la **Línea de Prevención del Suicidio \\*4141** (gratuita, desde celulares) "
     "o a **Salud Responde 600 360 7777**.\n• En una emergencia, llama al **131 (SAMU)** o acude a urgencias.\n\n"
-    "Avisé al equipo de apoyo para que una persona te contacte. _(En la hackathon es una simulación: no se contacta a nadie real.)_")
+    "_En un servicio real, una persona del equipo de apoyo revisaría este caso. En esta demostración no se contacta a nadie._")
 def crisis(texto): return any(re.search(p, (texto or "").lower()) for p in _CRISIS)
 
 # ------------------------------------------------------------------ barra lateral común
