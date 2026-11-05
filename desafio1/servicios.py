@@ -1,6 +1,7 @@
 """Catálogo de servicios de apoyo para personas mayores y quienes las cuidan: base fija + filas que agrega el equipo en `servicios_extra`."""
 import re
 import pandas as pd
+import validaciones as V
 
 CATEGORIAS = {"compania", "salud", "tramites", "cuidado", "cuidadores", "maltrato", "estafas"}
 ORIGENES = {"real", "sintético", "sintetico"}
@@ -13,6 +14,7 @@ def validar_servicio(fila) -> str:
     if g("categoria").lower() not in CATEGORIAS: return f"categoria debe ser una de: {', '.join(sorted(CATEGORIAS))}"
     for c in ("nombre", "para_que_sirve", "cuando_sugerirlo", "como_acceder"):
         if not g(c): return f"falta completar '{c}'"
+        if V.texto_inseguro(g(c)): return f"'{c}' no cumple las protecciones de salud o trato respetuoso"
     if not g("fuente_url").startswith("http"): return "fuente_url debe ser un enlace (http…) a la fuente del servicio"
     if g("origen_dato").lower() not in ORIGENES: return "origen_dato debe ser 'real' o 'sintético'"
     return ""

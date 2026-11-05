@@ -9,10 +9,20 @@ MEDICACION = re.compile(
     r"\b(deje|dejar|deja|suspenda|suspender|suspende|aumente|aumentar|aumenta|"
     r"disminuya|baje|bajar|junte|juntar)\s+(de tomar|la dosis|el remedio|los remedios|"
     r"el medicamento|la pastilla|las pastillas)|"
-    r"\b(tom[ae]|tomar|tome[n]?|dupliqu[ae]|duplicar|reduzca|reducir|mezcl[ae]|mezclar|"
+    r"\b(tome[n]?|dupliqu[ae]|duplicar|reduzca|reducir|mezcl[ae]|mezclar|"
     r"suspend[ae]|suspender|aument[ae]|aumentar|disminuy[ae]|disminuir)\b"
+    r"[^.!?\n]{0,70}\b(dosis|pastillas?|medicamentos?|remedios?|comprimidos?|gotas|insulina)\b|"
+    # 'Toma' también describe una situación. Solo se trata como instrucción al
+    # iniciar una frase o después de una indicación explícita; no en 'si toma'.
+    r"(?:(?:^|[.!?\n])\s*(?:por favor[, ]+)?|\b(?:debe[sn]?|deber[ií]a[sn]?|"
+    r"tienes? que|tiene que|puedes?|recomiendo|aconsejo)\s+)(?:toma|tomar)\b"
     r"[^.!?\n]{0,70}\b(dosis|pastillas?|medicamentos?|remedios?|comprimidos?|gotas|insulina)\b",
     re.I)
+
+
+def texto_inseguro(texto):
+    """Mismo límite para texto de pantalla, de catálogo y generado por IA."""
+    return bool(DIAGNOSTICO.search(texto) or EDADISMO.search(texto) or MEDICACION.search(texto))
 
 
 def normalizar_clasificacion(c, respaldo, categorias, servicios, inseguro):

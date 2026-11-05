@@ -16,6 +16,7 @@ import requests
 import base64
 import streamlit as st
 import persistencia as P
+import validaciones as V
 
 AVISO_IA = ("**Esta herramienta usa inteligencia artificial.** Puede equivocarse y **no reemplaza el criterio "
             "de una persona**: la decisión final siempre es humana. Lo que se consulta y responde queda registrado "
@@ -82,6 +83,7 @@ def _hoja_estado():
 
 def estado_equipo(clave: str) -> dict:
     """Recupera estado confirmado. La pestaña se prepara antes del despliegue."""
+    st.session_state["_modo_estado"] = "sin_verificar"
     g = _global()
     with g["lock"]:
         anterior = dict(g["equipos"].setdefault(_clave_estado(clave), {}))
@@ -89,6 +91,7 @@ def estado_equipo(clave: str) -> dict:
         ws = _hoja_estado()
         if ws is None:  # modalidad básica de la demo: estado temporal en memoria (lo explica aviso_demo)
             st.session_state["_modo_estado"] = "temporal"
+            st.session_state.pop("_error_estado", None)
             return anterior
         datos = P.reconstruir(ws.get_all_values(), st.session_state.get("_app"), identidad_equipo(), clave)
         if clave == "bandeja":
@@ -104,6 +107,7 @@ def estado_equipo(clave: str) -> dict:
         return dict(datos)
     except Exception:
         st.session_state["_error_estado"] = True
+        st.session_state["_modo_estado"] = "error"
         st.error("No se pudo leer el estado central. La vista puede estar incompleta. No se confirmarán cambios hasta recuperar la conexión; revise la pestaña estado_d1_v1 y sus permisos.")
         return anterior
 
@@ -194,7 +198,7 @@ h1,h2,h3,h4{font-family:'Source Serif 4',Georgia,serif !important;color:var(--az
 .card{background:#fff;border:1px solid var(--borde);border-radius:6px;padding:14px 18px;margin:0 0 12px 0;color:var(--tinta)}
 .card .c-tit{font-weight:700;font-size:1rem;margin:0 0 6px 0;color:var(--azul)}
 .card .c-txt{font-size:.96rem;line-height:1.55;color:var(--tinta)}
-.card.guia{padding:10px 16px}.card.guia .c-txt,.card.guia .c-txt li{font-size:.88rem !important;line-height:1.45 !important}
+.card.guia{padding:10px 16px}.card.guia .c-txt,.card.guia .c-txt li{font-size:var(--letra-demo,.96rem);line-height:1.6}
 .card.ok{border-left:4px solid #2E7D4F}.card.warn{border-left:4px solid var(--oro)}.card.bad{border-left:4px solid #B3261E}.card.info{border-left:4px solid var(--azul2)}.card.gray{border-left:4px solid #A3ABB8}
 .badge{display:inline-block;border-radius:4px;padding:2px 9px;font-size:.78rem;font-weight:600;margin:0 6px 5px 0;white-space:nowrap}
 .b-green{background:#E3F1E8;color:#1F5C38}.b-amber{background:var(--oro-claro);color:#7A5A00}.b-red{background:#F8E1DF;color:#8C1D18}.b-teal{background:var(--azul-claro);color:var(--azul)}.b-gray{background:#EEF0F3;color:#3D4554}
@@ -287,8 +291,11 @@ AVISO_SIMULACION = "Ninguna acción de esta demo contacta a personas ni activa s
 
 def aviso_demo():
     """Aviso breve y visible. Se llama después de leer el estado, para no decir 'temporal' si de verdad se guarda."""
-    central = st.session_state.get("_modo_estado") == "central"
-    tarjeta("Demostración educativa", md(AVISO_DEMO_CENTRAL if central else AVISO_DEMO_TEMPORAL) + "<br>" + md(AVISO_SIMULACION), "warn guia")
+    modo = st.session_state.get("_modo_estado", "sin_verificar")
+    aviso = {"central": AVISO_DEMO_CENTRAL, "temporal": AVISO_DEMO_TEMPORAL,
+             "error": "Solo utiliza datos ficticios. No se pudo verificar el almacenamiento central. La vista puede estar incompleta y hay que confirmar cualquier guardado pendiente.",
+             "sin_verificar": "Solo utiliza datos ficticios. El almacenamiento todavía no se ha verificado."}
+    tarjeta("Demostración educativa", md(aviso.get(modo, aviso["sin_verificar"])) + "<br>" + md(AVISO_SIMULACION), "warn guia")
 
 def recorrido(pasos, limites):
     """Recorrido sugerido (pasos numerados) y límites de la demo, lado a lado y sin saturar la pantalla."""
@@ -392,6 +399,23 @@ def configuracion(ruta_plantilla: str, pestana_extra: str, validar_fila) -> tupl
         for c, v in zip(hojas["config"]["campo"].str.strip(), hojas["config"]["valor"]):
             if c in cfg and str(v).strip():
                 cfg[c] = str(v).strip()
+    # Los prompts y ejemplos del equipo se conservan para sus pruebas. Los
+    # textos que se muestran directamente a la persona también deben validarse.
+    fallbacks = {"titulo_app": "Demostración educativa", "texto_bienvenida": "Explore esta demostración con datos ficticios.",
+                 "texto_boton": "Comenzar", "mensaje_inicial": "Hola, soy un asistente de inteligencia artificial. ¿Qué apoyo necesita?",
+                 "texto_consentimiento": "Entiendo que converso con una inteligencia artificial, que la conversación queda registrada y que puedo dejar de responder cuando quiera.",
+                 "respuestas_rapidas": "Quiero conocer los apoyos disponibles"}
+    for campo, seguro in fallbacks.items():
+        if campo in cfg and V.texto_inseguro(cfg[campo]):
+            original = cfg[campo]
+            base_segura = cfg_base.get(campo, seguro)
+            cfg[campo] = seguro if V.texto_inseguro(base_segura) else base_segura
+            st.sidebar.warning(f"Se reemplazó el campo {campo}: no cumple las protecciones de salud o trato respetuoso.")
+            firma = hashlib.sha256((campo + original).encode()).hexdigest()
+            vistos = st.session_state.setdefault("_config_bloqueada", set())
+            if firma not in vistos:
+                registrar({"tipo": "validacion", "tarea": "configuracion", "nota": f"Texto de pantalla bloqueado: {campo}"})
+                vistos.add(firma)
     extra = hojas.get(pestana_extra, base.get(pestana_extra, pd.DataFrame()))
     validas, ignoradas = [], []
     for i, fila in extra.iterrows():
@@ -537,6 +561,18 @@ class IA:
 
 def aviso_si_demo(info: dict):
     modo = str(info.get("modo", ""))
+    fijos = {"configuracion": "Mensaje inicial de la configuración: no generado por IA.",
+             "protocolo": "Protocolo fijo de seguridad: no generado por IA.",
+             "proteccion": "Respuesta reemplazada por una protección fija: no generada por IA.",
+             "clasificacion_local": "Hoja de ruta preparada por clasificación local: no generada por IA.",
+             "limite_turnos": "Aviso fijo del límite de conversación: no generado por IA."}
+    if modo in fijos:
+        st.caption(fijos[modo])
+        return
+    if modo == "edicion_humana":
+        base = "IA conectada" if info.get("modo_base") == "real" else "ejemplo preparado"
+        st.caption(f"Propuesta editada por una persona. Origen del borrador: {base}.")
+        return
     if modo == "real":
         st.caption(f"Respuesta generada por IA conectada: {info.get('proveedor')} · {str(info.get('modelo', '')).split('/')[-1]} · "
                    f"{info.get('latencia_s', '?')} s. Puede equivocarse: revísala.")

@@ -252,9 +252,11 @@ with t2:
                       "qué muestran los registros, qué apoyos del catálogo podrían servir y qué hacer en la próxima visita o llamada.", "gray")
         else:
             texto, info = st.session_state[clave]
-            N.aviso_si_demo(info)
+            original = texto
             with st.expander("Revisar y editar el texto antes de usarlo", expanded=bool(validar(texto))):
                 texto = st.text_area("Propuesta de la IA", texto, height=260, key=f"ta_{sel}", label_visibility="collapsed")
+            origen = {**info, "modo_base": info.get("modo"), "modo": "edicion_humana"} if texto != original else dict(info)
+            N.aviso_si_demo(origen)
             prob = validar(texto)
             if prob:
                 st.error("La validación detectó problemas. Corrige el texto antes de usarlo: " + "; ".join(prob))
@@ -280,7 +282,7 @@ with t2:
                         N.registrar({"tipo": "validacion", "tarea": "ficha", "id_persona": sel, "nota": "; ".join(problemas)})
                     elif not dec: st.warning("Elige una decisión: la IA no decide por ti.")
                     else:
-                        datos = {"decision": dec, "utilidad": util, "nota": nota, "salida": texto}
+                        datos = {"decision": dec, "utilidad": util, "nota": nota, "salida": texto, "origen": origen}
                         if N.guardar_elemento("decisiones", sel, datos):
                             N.registrar({"tipo": "decision_humana", "tarea": "ficha", "id_persona": sel, **datos})
                             st.session_state["_flash"] = f"Decisión registrada para {sel}: **{dec}**"

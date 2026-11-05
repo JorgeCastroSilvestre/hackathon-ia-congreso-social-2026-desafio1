@@ -23,7 +23,7 @@ LETRA = {"normal": "1rem", "grande": "1.2rem", "muy grande": "1.45rem"}.get(cfg.
 RAPIDAS = [r.strip() for r in cfg.get("respuestas_rapidas", "").split(";") if r.strip()][:6]
 CATEGORIAS = sorted(S.CATEGORIAS) + ["ninguna"]
 QUIEN = {"Hablo por mí": "la propia persona mayor", "Hablo por alguien a quien acompaño": "un familiar, vecino o persona cercana que acompaña a una persona mayor"}
-st.markdown(f"<style>[data-testid='stChatMessage'] p,[data-testid='stChatMessage'] li,.card .c-txt{{font-size:{LETRA};line-height:1.6}}"
+st.markdown(f"<style>:root{{--letra-demo:{LETRA}}}[data-testid='stChatMessage'] p,[data-testid='stChatMessage'] li,.card .c-txt{{font-size:{LETRA};line-height:1.6}}"
             f"div[data-testid='stButton'] button p{{font-size:{LETRA}}}</style>", unsafe_allow_html=True)
 
 # [fijo] Reglas fijas (los equipos solo agregan personalización desde la planilla)
@@ -151,14 +151,15 @@ AVATAR = {"assistant": ":material/support_agent:", "user": ":material/person:"}
 
 def reiniciar():
     ss.hist, ss.turno, ss.clasif, ss.ultimo_info = [], 0, None, {}
-    for clave in ("_caso_id", "_respuesta_enviada", "_pendiente", "_aviso_val"):
+    for clave in ("_caso_id", "_respuesta_enviada", "_pendiente", "_aviso_val", "_info_clasif"):
         ss.pop(clave, None)
     ss["_n_conv"] = ss.get("_n_conv", 0) + 1
 
 def nuevo_caso(pid, c, origen):
     cid = ss.setdefault("_caso_id", "C-" + uuid.uuid4().hex)
     existente = next((b for b in bandeja if b["caso"] == cid), None)
-    if existente and origen == "conversación":
+    pendiente = ss.get("_casos_por_guardar", {}).get(cid)
+    if existente and not pendiente and origen == "conversación":
         return cid  # el protocolo ya creó el caso de esta conversación
     caso = {"caso": cid, "persona": pid, "conversa": "Persona mayor" if ss.quien == list(QUIEN)[0] else "Apoyo cercano", "origen": origen,
                     "urgencia": c.get("urgencia", "-"), "necesidades": ", ".join(c.get("necesidades", [])), "servicio_sugerido": c.get("servicio_sugerido", "-"),
@@ -166,15 +167,21 @@ def nuevo_caso(pid, c, origen):
     if existente:
         caso["decision"] = existente["decision"]
         caso["nota_decision"] = existente.get("nota_decision", "")
-        # Una señal posterior de maltrato no baja una emergencia existente.
-        if existente["urgencia"] == "CRISIS": caso["urgencia"] = "CRISIS"
+    # La prioridad nunca disminuye, tampoco si Google rechazó la escritura
+    # anterior. Conservar el resumen y origen que corresponden a esa prioridad.
+    prioridad = {"CRISIS": 0, "MALTRATO": 1, "alta": 2, "media": 3, "baja": 4}
+    anterior = min([p for p in (existente, pendiente) if p],
+                   key=lambda p: prioridad.get(p["urgencia"], 5), default=None)
+    if anterior and prioridad.get(anterior["urgencia"], 5) < prioridad.get(caso["urgencia"], 5):
+        for campo in ("urgencia", "origen", "resumen_ia", "servicio_sugerido", "necesidades"):
+            caso[campo] = anterior[campo]
     if not N.guardar_elemento("bandeja", cid, caso):
         ss.setdefault("_casos_por_guardar", {})[cid] = caso
         return None
     ss.setdefault("_casos_por_guardar", {}).pop(cid, None)
     if existente: existente.update(caso)
     else: bandeja.append(caso)
-    N.registrar({"tipo": "caso_creado", "caso": cid, "origen": origen, "urgencia": c.get("urgencia")})
+    N.registrar({"tipo": "caso_creado", "caso": cid, "origen": caso["origen"], "urgencia": caso["urgencia"]})
     return cid
 
 
@@ -183,7 +190,7 @@ def inseguro(texto):
 
 def activar_protocolo(tipo, msg, pid, origen):
     texto = MENSAJE_EMERGENCIA if tipo == "CRISIS" else MENSAJE_MALTRATO
-    ss.hist.append({"role": "assistant", "content": texto})
+    ss.hist.append({"role": "assistant", "content": texto, "info": {"modo": "protocolo"}})
     N.registrar({"tipo": "protocolo_" + tipo.lower(), "entrada": msg, "salida": texto, "nota": origen})
     nuevo_caso(pid, {"urgencia": tipo, "necesidades": ["maltrato" if tipo == "MALTRATO" else "salud"], "servicio_sugerido": "S01" if tipo == "MALTRATO" else "-",
                      "resumen": f"Señal grave ({origen}): contacto humano prioritario."}, origen)
@@ -204,7 +211,7 @@ N.recorrido(
      "**Abra la bandeja** y observe la decisión humana: la IA no decide ni contacta a nadie."],
     ["La IA puede equivocarse: las respuestas deben revisarse.",
      "La lista fija de frases de riesgo no reconoce todas las formas de decirlo.",
-     "Bajo cada respuesta se indica si es preparada de ejemplo o generada por IA.",
+     "Cada respuesta identifica su origen: IA, ejemplo preparado, configuración o protección fija.",
      "La decisión final siempre es humana."])
 N.como_adaptar(
     ["**Usuario, tono y largo de respuesta** (`usuario`, `tono`, `largo_respuesta`).",
@@ -265,11 +272,13 @@ with t1:
                     if not ok: st.warning("Para comenzar hay que aceptar el aviso de consentimiento.")
                     else:
                         N.registrar({"tipo": "consentimiento", "persona": pid, "conversa": ss.quien})
-                        ss.hist = [{"role": "assistant", "content": cfg["mensaje_inicial"]}]
+                        ss.hist = [{"role": "assistant", "content": cfg["mensaje_inicial"], "info": {"modo": "configuracion"}}]
             if ss.hist: zona.empty()
-        for m in ss.hist: st.chat_message(m["role"], avatar=AVATAR[m["role"]]).markdown(m["content"])
+        for m in ss.hist:
+            with st.chat_message(m["role"], avatar=AVATAR[m["role"]]):
+                st.markdown(m["content"])
+                if m["role"] == "assistant": N.aviso_si_demo(m.get("info", {}))
         if ss.hist and ss.hist[-1]["role"] == "assistant": escuchar(ss.hist[-1]["content"])
-        if ss.ultimo_info: N.aviso_si_demo(ss.ultimo_info)
         if ss.get("_aviso_val"): st.caption(ss.pop("_aviso_val"))
         if ss.hist and ss.clasif is None:
             if RAPIDAS and ss.turno == 0:
@@ -283,11 +292,13 @@ with t1:
                 if tipo:  # [fijo] protocolo fijo: no pasa por la IA
                     activar_protocolo(tipo, msg, pid, "protocolo fijo")
                 elif ss.turno > MAX_TURNOS:
-                    ss.hist.append({"role": "assistant", "content": "Llegamos al final de la conversación. Presione **Terminar** para ver su resumen."})
+                    ss.hist.append({"role": "assistant", "content": "Llegamos al final de la conversación. Presione **Terminar** para ver su resumen.",
+                                    "info": {"modo": "limite_turnos"}})
                 else:
                     sistema = REGLAS.format(quien=QUIEN[ss.quien], catalogo=S.texto(catalogo)) + "\n\n" + N.personalizacion(cfg)
                     with st.spinner("ConectaMayor está escribiendo…"):
-                        texto, info = ia.llamar([{"role": "system", "content": sistema}] + ss.hist, "chat", f"{pid}_{ss.turno}", temperatura=0.5, max_tokens=350)
+                        mensajes = [{"role": m["role"], "content": m["content"]} for m in ss.hist]
+                        texto, info = ia.llamar([{"role": "system", "content": sistema}] + mensajes, "chat", f"{pid}_{ss.turno}", temperatura=0.5, max_tokens=350)
                     marca = MARCA.search(texto)
                     if marca:  # [fijo] la IA reconoció una señal grave dicha de forma indirecta: se aplica el mismo protocolo fijo
                         activar_protocolo("CRISIS" if marca.group(1) == "EMERGENCIA" else "MALTRATO", msg, pid, "señal indirecta reconocida por la IA")
@@ -296,12 +307,14 @@ with t1:
                         if DIAGNOSTICO.search(texto) or V.DIAGNOSTICO.search(texto) or MEDICAMENTO.search(texto) or V.MEDICACION.search(texto):  # [fijo] validación
                             N.registrar({"tipo": "validacion", "tarea": "chat", "salida": texto, "nota": "indicación de salud bloqueada"})
                             texto = SIN_SALUD
+                            info = {**info, "modo_base": info.get("modo"), "modo": "proteccion"}
                             ss["_aviso_val"] = "La validación reemplazó la respuesta de la IA porque daba indicaciones de salud o medicamentos."
                         elif EDADISMO.search(texto) or V.EDADISMO.search(texto):
                             N.registrar({"tipo": "validacion", "tarea": "chat", "salida": texto, "nota": "lenguaje infantilizante"})
                             texto = "Estoy aquí para orientarle con respeto. ¿Qué apoyo necesita?"
+                            info = {**info, "modo_base": info.get("modo"), "modo": "proteccion"}
                             ss["_aviso_val"] = "La validación reemplazó una respuesta con lenguaje infantilizante (queda registrado)."
-                        ss.hist.append({"role": "assistant", "content": texto}); ss.ultimo_info = info
+                        ss.hist.append({"role": "assistant", "content": texto, "info": info}); ss.ultimo_info = info
                 st.rerun()
             if len(ss.hist) > 1 and st.button("Terminar conversación"):
                 solo = " ".join(m["content"] for m in ss.hist if m["role"] == "user")
@@ -311,15 +324,19 @@ with t1:
                                              {"role": "user", "content": CLASIFICAR.format(categorias=", ".join(CATEGORIAS), catalogo=S.texto(catalogo), conv=conv_txt(ss.hist))}],
                                             "clasificar", "actual", json_mode=True, temperatura=0)
                 original = N.extraer_json(texto)
-                c = V.normalizar_clasificacion(original, clasif_local(solo), CATEGORIAS, SERV, inseguro)
+                respaldo = clasif_local(solo)
+                c = V.normalizar_clasificacion(original, respaldo, CATEGORIAS, SERV, inseguro)
+                ss["_info_clasif"] = ({**info, "modo_base": info.get("modo"), "modo": "clasificacion_local"}
+                                      if c is respaldo else dict(info))
                 if c != original:
                     N.registrar({"tipo": "validacion", "tarea": "clasificar", "nota": "JSON normalizado o reemplazado por clasificación local"})
                     ss["_aviso_val"] = "El resumen fue revisado; se corrigió su estructura o se usó la clasificación local segura."
-                ss.clasif = c; ss.ultimo_info = info; st.rerun()
+                ss.clasif = c; ss.ultimo_info = ss["_info_clasif"]; st.rerun()
         if ss.clasif:
             c = ss.clasif
             pasos = "".join(f"<li>{N.md(p)}</li>" for p in c["hoja_de_ruta"])
             N.tarjeta("Su hoja de ruta", f"<ol style='margin:0;padding-left:1.3em'>{pasos}</ol>", "ok")
+            N.aviso_si_demo(ss.get("_info_clasif", {}))
             escuchar(" ".join(c["hoja_de_ruta"]))
             if c["servicio_sugerido"] in SERV:
                 N.tarjeta(f"Apoyo que podría servirle · {SERV[c['servicio_sugerido']]}", "<b>Cómo acceder:</b> " + N.md(ACCESO.get(c["servicio_sugerido"], "")), "info")
