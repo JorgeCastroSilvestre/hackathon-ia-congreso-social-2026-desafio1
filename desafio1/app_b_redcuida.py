@@ -75,6 +75,7 @@ def preparar(pesos: tuple, cupo: int):
     return cola.drop(columns=["trayectoria", "semana_inicio_cambio"]), con, pd.DataFrame(filas), detect, len(per)
 
 cola, contactos, equidad, deteccion, n_total = preparar(tuple(PESOS.items()), CUPO)
+cola = cola.copy()  # la caché es compartida entre equipos: cada sesión trabaja sobre su propia copia
 
 def bitacora(pid, semanas=6):
     d = contactos[(contactos.id_persona == pid) & (contactos.semana > G.SEMANAS - semanas)]
@@ -82,7 +83,8 @@ def bitacora(pid, semanas=6):
                      + (f" [marcado: {', '.join(ETIQUETAS[s] for s in G.SENALES if getattr(r, s) == 1)}]" if any(getattr(r, s) == 1 for s in G.SENALES) else "")
                      for r in d.itertuples()) or "(sin contactos registrados en estas semanas)"
 perfil_txt = lambda f: (f"- Edad: {f['edad']}\n- Sector: {f['sector']}\n- Vive sola: {'sí' if f['vive_sola'] else 'no'}\n- Teléfono: {'sí' if f['tiene_telefono'] else 'no'}\n"
-                        f"- Autonomía: {f['autonomia']}\n- Quién la cuida: {f['cuidador_principal']}\n- Semanas sin contacto logrado: {f['semanas_sin_contacto']}")
+                        f"- Autonomía: {f['autonomia']}\n- Quién la cuida: {f['cuidador_principal']}\n- Semanas sin contacto logrado: {f['semanas_sin_contacto']}\n"
+                        f"- Monitor/a asignado/a: {f.get('monitor_asignado', 'sin dato')}")
 
 # 🔒 Reglas fijas del prompt (los equipos solo agregan la personalización desde la planilla)
 REGLAS = """Eres un asistente que apoya a quien coordina el acompañamiento comunitario de personas mayores en Chile a PREPARAR el próximo

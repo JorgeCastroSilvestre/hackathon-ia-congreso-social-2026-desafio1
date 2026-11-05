@@ -71,6 +71,8 @@ _MALTRATO = [r"(me|le) (pega|pegan|golpea|golpean|empuja|empujan|zamarrea|insult
              r"(me|le) (quita|quitan|saca|sacan|cobra|cobran) (la |mi |su )?(plata|pensi[oó]n|tarjeta|platita|jubilaci[oó]n)",
              r"(maneja|manejan|administra|administran|controla|controlan) (mi|su) (plata|pensi[oó]n|dinero|tarjeta|jubilaci[oó]n)",
              r"ya no (veo|ve) (mi|su) (plata|pensi[oó]n|dinero)", r"no (me|le) (da|dan|pasa|pasan) (de )?(comer|mis remedios|sus remedios|los remedios)",
+             r"(me|le|la|lo) (dejaron|dejan|deja|dej[oó]) sol[oa] (por|durante|hace|toda|todo|varios|varias|una|un|dos|tres|\d)",
+             r"nadie (me|le) (trae|da|deja) (de )?comer",
              rf"miedo (a|de) {_FAMILIA}", r"miedo cuando (llega|viene|est[aá]|se enoja)", r"me tratan (como|mal)", r"\bun estorbo\b", r"maltrat", r"abus[oa]"]
 _EMERGENCIA = [r"ca[ií]\w*.{0,60}no (me|se|le) (pude|pudo|puedo|puede|pod[ií]a)\w* (levantar|parar)", r"no (me|se) (pude|pudo|puedo|puede) (levantar|parar) del suelo",
                r"(dolor|apret[oó]n|puntada) (fuerte )?en el pecho", r"no (puedo|puede|pod[ií]a) respirar", r"me ahogo",
