@@ -1,5 +1,5 @@
 """
-🔒 NÚCLEO COMÚN · Plantillas Hackathon IA Congreso Social UC 2026 · Desafío 2
+NÚCLEO COMÚN · Plantillas Hackathon IA Congreso Social UC 2026 · Desafío 2
 Misma lógica que las plantillas del Desafío 3 (G. Pinto): app pública + código y clave de
 equipo + planilla de Google por equipo (pestaña `config` con campos + pestaña de extras).
 
@@ -16,7 +16,7 @@ import requests
 import base64
 import streamlit as st
 
-AVISO_IA = ("⚠️ **Esta herramienta usa inteligencia artificial.** Puede equivocarse y **no reemplaza el criterio "
+AVISO_IA = ("**Esta herramienta usa inteligencia artificial.** Puede equivocarse y **no reemplaza el criterio "
             "de una persona**: la decisión final siempre es humana. Lo que se consulta y responde queda registrado "
             "para la revisión de la hackathon. Prototipo con datos ficticios.")
 AVISO_DEMO = ("Se muestra una respuesta de demostración: la IA no respondió. Esperen un minuto y prueben de nuevo; "
@@ -101,25 +101,38 @@ def registro_equipo() -> pd.DataFrame:
 
 # ------------------------------------------------------------------ apariencia
 _CSS = """<style>
-.block-container{padding-top:1.4rem;padding-bottom:3rem;max-width:1240px}
-.hero{background:linear-gradient(135deg,#0F766E 0%,#155E75 100%);border-radius:18px;padding:22px 28px 16px;margin:0 0 14px 0;box-shadow:0 6px 18px rgba(15,118,110,.18)}
-.hero .h-tit{color:#fff;font-size:1.85rem;font-weight:700;line-height:1.2;margin:0 0 6px 0}
-.hero .h-sub{color:#E6FFFA;font-size:1.02rem;margin:0 0 10px 0;max-width:900px}
-.chip{display:inline-block;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:999px;padding:3px 12px;margin:0 6px 6px 0;font-size:.82rem}
-.card{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:14px 18px;margin:0 0 12px 0;box-shadow:0 1px 3px rgba(15,23,42,.05);color:#0F172A}
-.card .c-tit{font-weight:700;font-size:.98rem;margin:0 0 6px 0;color:#0F172A}
-.card .c-txt{font-size:.95rem;line-height:1.5;color:#1E293B}
-.card.ok{border-left:6px solid #16A34A}.card.warn{border-left:6px solid #D97706}.card.bad{border-left:6px solid #DC2626}.card.info{border-left:6px solid #0F766E}.card.gray{border-left:6px solid #94A3B8}
-.badge{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.78rem;font-weight:600;margin:0 6px 5px 0;white-space:nowrap}
-.b-green{background:#DCFCE7;color:#166534}.b-amber{background:#FEF3C7;color:#92400E}.b-red{background:#FEE2E2;color:#991B1B}.b-teal{background:#CCFBF1;color:#115E59}.b-gray{background:#F1F5F9;color:#334155}
-.quote{border-left:4px solid #5EEAD4;padding:8px 12px;color:#334155;font-style:italic;background:#F0FDFA;border-radius:0 10px 10px 0;margin:4px 0 10px 0}
-div[data-testid="stMetric"]{background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:10px 16px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
-div[data-testid="stMetricLabel"] p{font-size:.85rem;color:#475569}
-.stTabs [data-baseweb="tab-list"]{gap:6px}
-.stTabs [data-baseweb="tab"]{background:#fff;border:1px solid #E2E8F0;border-radius:10px 10px 0 0;padding:6px 14px}
-.stTabs [aria-selected="true"]{background:#F0FDFA;border-color:#99F6E4}
-.pie-nota{color:#64748B;font-size:.8rem;margin-top:24px;text-align:center}
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Source+Sans+3:wght@400;600;700&display=swap');
+:root{--azul:#0A2B5C;--azul2:#1F4E8C;--azul-claro:#E8EEF7;--oro:#D9A400;--oro-claro:#FBF3D9;--tinta:#13213A;--gris:#5B6475;--borde:#D9DEE7;--fondo:#F6F7F9}
+html,body,[class*="css"],.stMarkdown,.stTextInput,.stButton,.stRadio,.stSelectbox{font-family:'Source Sans 3',system-ui,sans-serif}
+h1,h2,h3,h4{font-family:'Source Serif 4',Georgia,serif !important;color:var(--azul) !important;font-weight:700 !important;letter-spacing:-.005em}
+.block-container{padding-top:1.2rem;padding-bottom:3rem;max-width:1200px}
+.marca{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:6px 0 12px 0;margin:0 0 18px 0;border-bottom:1px solid var(--borde)}
+.marca .m-centro{flex:1;text-align:center;color:var(--gris);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase}
+.hero{background:#fff;border:1px solid var(--borde);border-top:4px solid var(--azul);border-radius:6px;padding:22px 28px 16px;margin:0 0 16px 0}
+.hero .h-ceja{color:var(--oro);font-size:.76rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin:0 0 6px 0}
+.hero .h-tit{font-family:'Source Serif 4',Georgia,serif;color:var(--azul);font-size:2rem;font-weight:700;line-height:1.15;margin:0 0 8px 0}
+.hero .h-sub{color:var(--gris);font-size:1.04rem;line-height:1.5;margin:0 0 12px 0;max-width:880px}
+.chip{display:inline-block;background:var(--azul-claro);color:var(--azul);border-radius:4px;padding:3px 10px;margin:0 6px 6px 0;font-size:.8rem;font-weight:600}
+.card{background:#fff;border:1px solid var(--borde);border-radius:6px;padding:14px 18px;margin:0 0 12px 0;color:var(--tinta)}
+.card .c-tit{font-weight:700;font-size:1rem;margin:0 0 6px 0;color:var(--azul)}
+.card .c-txt{font-size:.96rem;line-height:1.55;color:var(--tinta)}
+.card.ok{border-left:4px solid #2E7D4F}.card.warn{border-left:4px solid var(--oro)}.card.bad{border-left:4px solid #B3261E}.card.info{border-left:4px solid var(--azul2)}.card.gray{border-left:4px solid #A3ABB8}
+.badge{display:inline-block;border-radius:4px;padding:2px 9px;font-size:.78rem;font-weight:600;margin:0 6px 5px 0;white-space:nowrap}
+.b-green{background:#E3F1E8;color:#1F5C38}.b-amber{background:var(--oro-claro);color:#7A5A00}.b-red{background:#F8E1DF;color:#8C1D18}.b-teal{background:var(--azul-claro);color:var(--azul)}.b-gray{background:#EEF0F3;color:#3D4554}
+.quote{border-left:3px solid var(--oro);padding:8px 12px;color:var(--tinta);font-style:italic;background:var(--oro-claro);border-radius:0 4px 4px 0;margin:4px 0 10px 0}
+div[data-testid="stMetric"]{background:#fff;border:1px solid var(--borde);border-radius:6px;padding:10px 16px}
+div[data-testid="stMetricLabel"] p{font-size:.8rem;color:var(--gris);text-transform:uppercase;letter-spacing:.04em}
+div[data-testid="stMetricValue"]{color:var(--azul);font-family:'Source Serif 4',Georgia,serif}
+.stTabs [data-baseweb="tab-list"]{gap:0;border-bottom:1px solid var(--borde)}
+.stTabs [data-baseweb="tab"]{background:transparent;padding:8px 18px;color:var(--gris);font-weight:600}
+.stTabs [aria-selected="true"]{color:var(--azul) !important}
+.stTabs [data-baseweb="tab-highlight"]{background-color:var(--oro) !important;height:3px}
+div[data-testid="stAlert"]{border-radius:6px}
+.stButton button,.stDownloadButton button{border-radius:4px;font-weight:600}
+section[data-testid="stSidebar"]{background:#fff;border-right:1px solid var(--borde)}
+.pie-nota{color:var(--gris);font-size:.78rem;margin-top:28px;padding-top:12px;border-top:1px solid var(--borde);text-align:center}
 </style>"""
+
 
 def estilos():
     st.markdown(_CSS, unsafe_allow_html=True)
@@ -151,15 +164,16 @@ def logos():
     """Instituciones organizadoras: PUC a la izquierda, Duoc UC a la derecha."""
     uc, duoc = _logo_b64("logo_uc.png"), _logo_b64("logo_duoc.png")
     if uc and duoc:
-        st.markdown(f'''<div style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin:0 0 8px 0">
-            <img src="data:image/png;base64,{uc}" alt="Pontificia Universidad Católica de Chile" style="height:56px;width:auto">
-            <img src="data:image/png;base64,{duoc}" alt="Duoc UC" style="height:34px;width:auto"></div>''', unsafe_allow_html=True)
+        st.markdown(f'''<div class="marca">
+            <img src="data:image/png;base64,{uc}" alt="Pontificia Universidad Católica de Chile" style="height:52px;width:auto">
+            <div class="m-centro">Hackathon de Inteligencia Artificial Aplicada<br>Congreso Social UC 2026</div>
+            <img src="data:image/png;base64,{duoc}" alt="Duoc UC" style="height:32px;width:auto"></div>''', unsafe_allow_html=True)
 
-def encabezado(titulo, bienvenida, chips=()):
+def encabezado(titulo, bienvenida, chips=(), ceja="Desafío 1 · Envejecer con autonomía"):
     logos()
     ch = "".join(f'<span class="chip">{md(c)}</span>' for c in chips if c)
-    st.markdown(f'<div class="hero"><div class="h-tit">{md(titulo)}</div><div class="h-sub">{md(bienvenida)}</div>{ch}</div>',
-                unsafe_allow_html=True)
+    st.markdown(f'<div class="hero"><div class="h-ceja">{md(ceja)}</div><div class="h-tit">{md(titulo)}</div>'
+                f'<div class="h-sub">{md(bienvenida)}</div>{ch}</div>', unsafe_allow_html=True)
 
 def corto(texto, n=60) -> str:
     t = " ".join(str(texto or "").split())
@@ -168,9 +182,9 @@ def corto(texto, n=60) -> str:
 # ------------------------------------------------------------------ página y acceso
 def iniciar(app_id: str, titulo: str, icono: str,
             subtitulo: str = "Ninguno se queda atrás · Hackathon IA Aplicada · Congreso Social UC 2026", chip: str = "Desafío 2 · Educación"):
-    st.set_page_config(page_title=titulo, page_icon=icono, layout="wide")
+    st.set_page_config(page_title=titulo, page_icon=str(_LOGOS / "logo_uc.png") if (_LOGOS / "logo_uc.png").exists() else None, layout="wide")
     st.session_state["_app"] = app_id
-    st.session_state["_titulo_app"] = f"{icono} {titulo}"
+    st.session_state["_titulo_app"] = titulo
     st.session_state["_subtitulo_acceso"], st.session_state["_chip_acceso"] = subtitulo, chip
     estilos()
 
@@ -190,7 +204,7 @@ def acceso() -> str:
                    [st.session_state.get("_chip_acceso", "Desafío 2 · Educación")])
         aviso_ia()
         with st.container(border=True):
-            st.markdown("#### 🔐 Ingreso del equipo")
+            st.markdown("#### Ingreso del equipo")
             c1, c2 = st.columns(2)
             cod = c1.text_input("Código de equipo", placeholder="Ej: E01").strip().upper()
             cla = c2.text_input("Clave", type="password").strip()
@@ -232,8 +246,8 @@ def configuracion(ruta_plantilla: str, pestana_extra: str, validar_fila) -> tupl
     base = _base(ruta_plantilla)
     with st.sidebar:
         st.markdown(f"**Equipo:** {st.session_state.get('_equipo')}")
-        url = st.text_input("🔗 URL de la copia de su planilla", value=st.session_state.get("_sheet_url", ""))
-        if st.button("🔄 Recargar configuración", width="stretch"):
+        url = st.text_input("URL de la copia de su planilla", value=st.session_state.get("_sheet_url", ""))
+        if st.button("Recargar configuración", width="stretch"):
             st.session_state["_sheet_url"] = url.strip()
             _descargar.clear()
             registrar({"tipo": "recarga_configuracion", "entrada": url.strip()})
@@ -263,15 +277,15 @@ def configuracion(ruta_plantilla: str, pestana_extra: str, validar_fila) -> tupl
         st.caption(f"Configuración leída desde: **{origen}**")
         st.caption(f"Pestaña `{pestana_extra}`: {len(extra_ok)} fila(s) agregada(s)")
         if ignoradas:
-            with st.expander(f"⚠️ {len(ignoradas)} fila(s) ignorada(s) · qué corregir"):
+            with st.expander(f"{len(ignoradas)} fila(s) ignorada(s) · qué corregir"):
                 for x in ignoradas: st.write("• " + x)
         cambiados = [c for c in cfg if cfg[c] != cfg_base.get(c)]
-        with st.expander(f"🎛️ Personalización · {len(cambiados)} cambio(s)"):
+        with st.expander(f"Personalización · {len(cambiados)} cambio(s)"):
             for c, etiqueta in (("usuario", "Usuario"), ("tono", "Tono"), ("largo_respuesta", "Largo"),
                                 ("instrucciones_extra", "Reglas del equipo"), ("ejemplos", "Ejemplos")):
-                marca = " ✏️" if c in cambiados else ""
+                marca = " (modificado)" if c in cambiados else ""
                 st.markdown(f"**{etiqueta}{marca}:** {corto(cfg.get(c, '') or '(vacío)', 140)}")
-            st.caption("✏️ = cambiado por el equipo respecto de la plantilla base.")
+            st.caption("(modificado) = cambiado por el equipo respecto de la plantilla base.")
     return cfg, extra_ok
 
 def personalizacion(cfg: dict) -> str:
@@ -307,10 +321,10 @@ class IA:
     def usadas(self): return _global()["consultas"].get(self._k(), 0)
 
     def estado(self):
-        if self.sin_claves: return "🟡 Modo demostración (sin conexión a la IA)"
-        if self.usadas() >= self.limite: return f"🟠 Límite de {self.limite} consultas alcanzado: modo demostración"
+        if self.sin_claves: return "Modo demostración (sin conexión a la IA)"
+        if self.usadas() >= self.limite: return f"Límite de {self.limite} consultas alcanzado: modo demostración"
         quien = "de tu código de mentor" if str(st.session_state.get("_codigo", "")).startswith("M") else "del equipo"
-        return f"🟢 Consultas {quien}: {self.usadas()}/{self.limite}"
+        return f"Consultas {quien}: {self.usadas()}/{self.limite}"
 
     def proveedores(self) -> str:
         pausas = _global().get("pausas", {})
@@ -396,14 +410,14 @@ class IA:
 def aviso_si_demo(info: dict):
     modo = str(info.get("modo", ""))
     if modo == "real":
-        st.caption(f"🤖 Respondió {info.get('proveedor')} · {str(info.get('modelo', '')).split('/')[-1]} · {info.get('latencia_s', '?')} s")
+        st.caption(f"Respondió {info.get('proveedor')} · {str(info.get('modelo', '')).split('/')[-1]} · {info.get('latencia_s', '?')} s")
         return
     if not modo:
         return
     if "límite" in modo:
         st.warning("Se alcanzó el límite de consultas del equipo: se muestra una respuesta de demostración. Avisen a su mentor.")
     elif "sin claves" in modo:
-        st.caption("🟡 Respuesta de demostración (instalación sin conexión a la IA).")
+        st.caption("Respuesta de demostración (instalación sin conexión a la IA).")
     else:
         st.warning(AVISO_DEMO)
 
@@ -441,10 +455,10 @@ def repetido(firma: str, segundos: int = 20) -> bool:
 def pie(ia: IA):
     with st.sidebar:
         st.divider(); st.caption(ia.estado())
-        st.caption(f"🤖 IA en orden de uso: {ia.proveedores()}")
+        st.caption(f"Modelos de IA en orden de uso: {ia.proveedores()}")
         if st.session_state.get("_aviso_reg"): st.warning(st.session_state["_aviso_reg"])
         df = registro_equipo()
-        st.download_button("📥 Descargar registro del equipo", df.to_csv(index=False).encode("utf-8"),
+        st.download_button("Descargar registro del equipo", df.to_csv(index=False).encode("utf-8"),
                            file_name=f"registro_{st.session_state.get('_app')}_{st.session_state.get('_equipo')}.csv",
                            mime="text/csv", width="stretch", disabled=df.empty)
         if st.button("Salir", width="stretch"):

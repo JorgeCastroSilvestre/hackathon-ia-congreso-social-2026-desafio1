@@ -8,7 +8,7 @@ ejemplos,"1. Lo que muestran los registros: desde la semana 9 no contesta el tel
 instrucciones_extra,"En la sugerencia, indica si conviene que vaya el mismo monitor de siempre.",Reglas propias del equipo. No pueden contradecir las reglas fijas de la app.,Si la persona no tiene teléfono sugiere siempre una visita.
 titulo_app,RedCuida · ¿A quién visitamos esta semana?,Título que aparece arriba en la app.,Panel de cuidados de la semana
 texto_bienvenida,"Ordenamos los registros de seguimiento para ver **a quién le está cambiando algo**, explicamos por qué y preparamos el próximo contacto. **Tú decides**.",Mensaje de bienvenida bajo el título.,"Tu lista de la semana, con el porqué de cada persona."
-texto_boton,✨ Preparar próximo contacto,Texto del botón principal.,Preparar ficha
+texto_boton,Preparar próximo contacto,Texto del botón principal.,Preparar ficha
 visitas_semana,15,Cuántas personas puede visitar o llamar el equipo esta semana (5 a 40). Las alertas no cuentan en este cupo.,10
 peso_caida,5,Cuánto pesa una caída reciente en el orden (0 a 10). Las caídas también generan una alerta.,6
 peso_desorientacion,3,"Peso de olvidos o desorientación (0 a 10).",4

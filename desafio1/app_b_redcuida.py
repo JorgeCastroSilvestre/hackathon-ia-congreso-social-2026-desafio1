@@ -10,7 +10,7 @@ import nucleo_st as N
 import servicios as S
 import generar_registros as G
 
-N.iniciar("D1-B", "RedCuida IA", "🏡", subtitulo="Envejecer con autonomía · Hackathon IA Aplicada · Congreso Social UC 2026", chip="Desafío 1 · Personas mayores")
+N.iniciar("D1-B", "RedCuida IA", "", subtitulo="Envejecer con autonomía · Hackathon IA Aplicada · Congreso Social UC 2026", chip="Desafío 1 · Personas mayores")
 N.acceso()
 cfg, extra = N.configuracion(str(AQUI / "planillas" / "Plantilla_config_D1_Variante_B.xlsx"), "servicios_extra", S.validar_servicio)
 catalogo = S.catalogo(AQUI, extra)
@@ -86,7 +86,7 @@ perfil_txt = lambda f: (f"- Edad: {f['edad']}\n- Sector: {f['sector']}\n- Vive s
                         f"- Autonomía: {f['autonomia']}\n- Quién la cuida: {f['cuidador_principal']}\n- Semanas sin contacto logrado: {f['semanas_sin_contacto']}\n"
                         f"- Monitor/a asignado/a: {f.get('monitor_asignado', 'sin dato')}")
 
-# 🔒 Reglas fijas del prompt (los equipos solo agregan la personalización desde la planilla)
+# [fijo] Reglas fijas del prompt (los equipos solo agregan la personalización desde la planilla)
 REGLAS = """Eres un asistente que apoya a quien coordina el acompañamiento comunitario de personas mayores en Chile a PREPARAR el próximo
 contacto con una persona. No juzgas, no diagnosticas y no decides.
 REGLAS FIJAS:
@@ -148,29 +148,29 @@ OPCIONES = ["Visitar esta semana", "Llamar esta semana", "Activar protocolo", "D
 
 # ------------------------------------------------------------------ pantalla
 N.encabezado(cfg["titulo_app"], cfg["texto_bienvenida"],
-             [f"👥 {st.session_state.get('_equipo')}", f"🎯 Para: {N.corto(cfg.get('usuario'), 70)}", f"📋 Cupo semanal: {CUPO} personas"])
+             [f"{st.session_state.get('_equipo')}", f"Usuario: {N.corto(cfg.get('usuario'), 70)}", f"Cupo semanal: {CUPO} personas"])
 N.aviso_ia()
 n_alertas = int((cola.alerta != "").sum())
 hechas = int((cola.decision != "Pendiente").sum())
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("En la lista de la semana", len(cola), help=f"{n_alertas} alertas + {len(cola) - n_alertas} por orden, de {n_total} personas acompañadas (ficticias)")
-m2.metric("🚨 Alertas (no esperan cupo)", n_alertas)
+m2.metric("Alertas (no esperan cupo)", n_alertas)
 m3.metric("Decisiones registradas", f"{hechas} de {len(cola)}")
 m4.metric("Consultas a la IA", f"{ia.usadas()} de {ia.limite}")
 
-t1, t2, t3 = st.tabs(["📋 1 · Lista de la semana", "🗂️ 2 · Ficha y decisión", "⚖️ 3 · ¿A quién no estamos viendo?"])
+t1, t2, t3 = st.tabs(["1 · Lista de la semana", "2 · Ficha y decisión", "3 · ¿A quién no estamos viendo?"])
 with t1:
     st.markdown(N.badge("Se compara a cada persona con sus propias semanas anteriores", "teal") + N.badge("El orden no usa sexo, edad ni sector", "teal") +
                 N.badge("El puntaje no es un diagnóstico", "gray") + N.badge("Solo lee las casillas marcadas, no las notas", "amber"), unsafe_allow_html=True)
     if n_alertas:
-        N.tarjeta(f"🚨 {n_alertas} alerta(s): caída o sospecha de maltrato en las últimas {VENTANA} semanas",
+        N.tarjeta(f"{n_alertas} alerta(s): caída o sospecha de maltrato en las últimas {VENTANA} semanas",
                   "Estas personas aparecen primero y <b>no ocupan cupo</b>: requieren aplicar el protocolo del equipo, no esperar la cola.", "bad")
     f1, f2 = st.columns([3, 1], vertical_alignment="bottom")
     fs = f1.pills("Sector", sorted(cola.sector.unique()), selection_mode="multi")
     solo = f2.toggle("Solo pendientes")
     vista = cola[cola.sector.isin(fs) if fs else cola.sector.notna()]
     if solo: vista = vista[vista.decision == "Pendiente"]
-    st.dataframe(vista.assign(Alerta=vista.alerta.map(lambda a: f"🚨 {a}" if a else ""))[
+    st.dataframe(vista.assign(Alerta=vista.alerta.map(lambda a: f"Alerta: {a}" if a else ""))[
         ["n", "id_persona", "nombre_ficticio", "sector", "Alerta", "por_que", "puntaje", "decision"]].rename(columns={
         "n": "N°", "id_persona": "Persona", "nombre_ficticio": "Nombre", "sector": "Sector", "por_que": "¿Por qué aparece?", "puntaje": "Puntaje", "decision": "Decisión"}),
         hide_index=True, width="stretch", height=460,
@@ -187,7 +187,7 @@ with t2:
         N.tarjeta(f"{sel} · {f['nombre_ficticio']}, {int(f['edad'])} años",
                   N.badge(f["sector"], "teal") + N.badge(f["autonomia"], "gray") + (N.badge("Vive sola", "amber") if f["vive_sola"] else "") +
                   (N.badge("Sin teléfono", "amber") if not f["tiene_telefono"] else "") + N.badge(f"Cuida: {f['cuidador_principal']}", "gray") +
-                  (f"<br>{N.badge('🚨 ' + f['alerta'], 'red')}" if f["alerta"] else "") +
+                  (f"<br>{N.badge('Alerta: ' + f['alerta'], 'red')}" if f["alerta"] else "") +
                   "<br>Decisión: " + N.badge(decisiones.get(sel, "Pendiente"), "gray" if sel not in decisiones else "green"), "bad" if f["alerta"] else "info")
         d = contactos[contactos.id_persona == sel]
         a1, a2 = st.columns(2)
@@ -201,9 +201,9 @@ with t2:
         largo = sem.melt("semana", var_name="Medida", value_name="Cantidad")
         st.altair_chart(alt.Chart(largo).mark_bar(cornerRadiusEnd=3).encode(
             x=alt.X("semana:O", title="Semana"), y=alt.Y("Cantidad:Q", title=None), xOffset="Medida:N",
-            color=alt.Color("Medida:N", scale=alt.Scale(domain=["Logrados", "No logrados", "Señales marcadas"], range=["#0F766E", "#94A3B8", "#F59E0B"]),
+            color=alt.Color("Medida:N", scale=alt.Scale(domain=["Logrados", "No logrados", "Señales marcadas"], range=["#0A2B5C", "#A3ABB8", "#D9A400"]),
                             legend=alt.Legend(orient="top", title=None)), tooltip=["semana", "Medida", "Cantidad"]).properties(height=170), use_container_width=True)
-        with st.expander("📓 Bitácora completa (12 semanas)"):
+        with st.expander("Bitácora completa (12 semanas)"):
             st.dataframe(d[["semana", "tipo", "registrado_por", "logrado", "nota"]].rename(columns={
                 "semana": "Sem.", "tipo": "Tipo", "registrado_por": "Quién", "logrado": "Logrado", "nota": "Nota"}).sort_values("Sem.", ascending=False),
                 hide_index=True, width="stretch", column_config={"Nota": st.column_config.TextColumn(width="large")})
@@ -224,10 +224,10 @@ with t2:
             N.aviso_si_demo(info)
             prob = validar(texto)
             if prob:
-                st.error("🔒 La validación detectó problemas. Corrige el texto antes de usarlo: " + "; ".join(prob))
+                st.error("La validación detectó problemas. Corrige el texto antes de usarlo: " + "; ".join(prob))
                 N.registrar({"tipo": "validacion", "tarea": "ficha", "id_persona": sel, "nota": "; ".join(prob)})
             else:
-                st.markdown(N.badge("✓ Validación superada: cita registros y servicios del catálogo, sin diagnósticos", "green"), unsafe_allow_html=True)
+                st.markdown(N.badge("Validación superada: cita registros y servicios del catálogo, sin diagnósticos", "green"), unsafe_allow_html=True)
             sec = secciones(texto)
             if sec:
                 cods = [c for c in dict.fromkeys(re.findall(r"\[([A-Z]{1,3}\d{1,3})\]", sec[1])) if c in set(catalogo.id_servicio)]
@@ -235,10 +235,10 @@ with t2:
                 N.tarjeta("1 · Lo que muestran los registros", N.md(sec[0]), "info")
                 N.tarjeta("2 · Apoyos posibles", N.md(sec[1]) + (f"<br><br><b>Cómo se accede:</b>{acceso}" if acceso else ""), "ok")
                 N.tarjeta("3 · Sugerencia para el próximo contacto", N.md(sec[2]), "warn" if prob else "ok")
-            with st.expander("✏️ Revisar y editar el texto antes de usarlo", expanded=not sec):
+            with st.expander("Revisar y editar el texto antes de usarlo", expanded=not sec):
                 st.text_area("Propuesta de la IA", texto, height=260, key=f"ta_{sel}", label_visibility="collapsed")
             with st.container(border=True):
-                st.markdown("#### 👤 Decisión humana (obligatoria)")
+                st.markdown("#### Decisión humana (obligatoria)")
                 dec = st.radio("¿Qué decides?", OPCIONES, index=None, key=f"dec_{sel}", horizontal=True)
                 util = st.select_slider("¿La propuesta te ahorró trabajo?", ["Nada", "Poco", "Algo", "Mucho"], value="Algo", key=f"ut_{sel}")
                 nota = st.text_input("Nota (opcional)", key=f"nota_{sel}")
@@ -262,7 +262,7 @@ with t3:
     base = alt.Chart(largo).encode(
         y=alt.Y("Valor:N", title=None, sort=list(d.Valor)), yOffset=alt.YOffset("Medida:N", sort=["En la lista (%)", "Cambios reales detectados (%)"]),
         x=alt.X("Porcentaje:Q", title="% del grupo", scale=alt.Scale(domain=[0, 100])),
-        color=alt.Color("Medida:N", scale=alt.Scale(domain=["En la lista (%)", "Cambios reales detectados (%)"], range=["#0F766E", "#F59E0B"]),
+        color=alt.Color("Medida:N", scale=alt.Scale(domain=["En la lista (%)", "Cambios reales detectados (%)"], range=["#0A2B5C", "#D9A400"]),
                         legend=alt.Legend(orient="top", title=None)),
         tooltip=["Valor", "Medida", alt.Tooltip("Porcentaje:Q", format=".1f"), "Personas"])
     graf = (base.mark_bar(cornerRadiusEnd=4) + base.mark_text(align="left", dx=4, fontSize=12, color="#0F172A").encode(text=alt.Text("Porcentaje:Q", format=".1f")))

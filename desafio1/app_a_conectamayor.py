@@ -9,7 +9,7 @@ import streamlit.components.v1 as components
 import nucleo_st as N
 import servicios as S
 
-N.iniciar("D1-A", "ConectaMayor IA", "🤝", subtitulo="Envejecer con autonomía · Hackathon IA Aplicada · Congreso Social UC 2026", chip="Desafío 1 · Personas mayores")
+N.iniciar("D1-A", "ConectaMayor IA", "", subtitulo="Envejecer con autonomía · Hackathon IA Aplicada · Congreso Social UC 2026", chip="Desafío 1 · Personas mayores")
 N.acceso()
 cfg, extra = N.configuracion(str(AQUI / "planillas" / "Plantilla_config_D1_Variante_A.xlsx"), "servicios_extra", S.validar_servicio)
 catalogo = S.catalogo(AQUI, extra)
@@ -25,7 +25,7 @@ QUIEN = {"Hablo por mí": "la propia persona mayor", "Hablo por alguien a quien 
 st.markdown(f"<style>[data-testid='stChatMessage'] p,[data-testid='stChatMessage'] li,.card .c-txt{{font-size:{LETRA};line-height:1.6}}"
             f"div[data-testid='stButton'] button p{{font-size:{LETRA}}}</style>", unsafe_allow_html=True)
 
-# 🔒 Reglas fijas (los equipos solo agregan personalización desde la planilla)
+# [fijo] Reglas fijas (los equipos solo agregan personalización desde la planilla)
 REGLAS = """Eres "ConectaMayor", un asistente de orientación para personas mayores en Chile y para quienes las acompañan.
 Tu objetivo: entender qué necesita la persona y orientarla hacia apoyo HUMANO del catálogo. No resuelves por ella ni decides por ella.
 Estás conversando con: {quien}.
@@ -64,7 +64,7 @@ MEDICAMENTO = re.compile(r"\b\d+(?:[.,]\d+)?\s?(mg|ml|gotas|comprimidos|pastilla
 EDADISMO = re.compile(r"\b(abuelit[oa]s?|viejit[oa]s?|mi reina|mijit[oa]|tatita)\b", re.I)
 SIN_SALUD = ("No puedo darle indicaciones de salud ni de medicamentos: eso lo debe ver una persona de salud. Puede llamar a **Salud Responde, 600 360 7777**, "
              "todos los días a toda hora. ¿Hay algo más en que le pueda orientar?")
-# 🔒 Protocolos fijos: se activan antes de consultar a la IA
+# [fijo] Protocolos fijos: se activan antes de consultar a la IA
 _FAMILIA = r"(mi|su|el|la) (hij|nuer|yern|sobrin|niet|espos|pareja|marido|herman|cuidador|familia)"
 _MALTRATO = [r"(me|le) (pega|pegan|golpea|golpean|empuja|empujan|zamarrea|insulta|insultan|grita|gritan|humilla|humillan|amenaza|amenazan)\b",
              r"(me|le) (tiene|tienen|deja|dejan) encerrad", r"\bencerrad[oa]\b", r"no (me|le) (deja|dejan) (salir|usar el tel[eé]fono|ver a|hablar con)",
@@ -119,7 +119,7 @@ ia = N.IA(DEMO)
 def escuchar(texto, alto=46):
     """Botón que lee el texto en voz alta con la voz del navegador (sin costo y sin enviar el audio a ningún servicio)."""
     limpio = json.dumps(re.sub(r"[*_#>\\]", "", texto))
-    components.html(f"""<button id="b" style="font-size:16px;padding:6px 14px;border-radius:10px;border:1px solid #0F766E;background:#F0FDFA;color:#0F766E;cursor:pointer">🔊 Escuchar</button>
+    components.html(f"""<button id="b" style="font-family:'Source Sans 3',system-ui,sans-serif;font-size:15px;font-weight:600;padding:6px 16px;border-radius:4px;border:1px solid #0A2B5C;background:#fff;color:#0A2B5C;cursor:pointer">Escuchar en voz alta</button>
 <script>document.getElementById('b').onclick=()=>{{const u=new SpeechSynthesisUtterance({limpio});u.lang='es-CL';u.rate=0.9;speechSynthesis.cancel();speechSynthesis.speak(u);}};</script>""", height=alto)
 
 def palabras_por_frase(textos):
@@ -130,8 +130,8 @@ bandeja = N.estado_equipo("bandeja").setdefault("casos", [])
 ss = st.session_state
 ss.setdefault("hist", []); ss.setdefault("turno", 0); ss.setdefault("clasif", None); ss.setdefault("ultimo_info", {}); ss.setdefault("quien", list(QUIEN)[0])
 conv_txt = lambda h: "\n".join(f"{'Persona' if m['role'] == 'user' else 'Asistente'}: {m['content']}" for m in h)
-URG = {"CRISIS": ("🔴 Emergencia", "red"), "MALTRATO": ("🟣 Posible maltrato", "red"), "alta": ("🟠 Alta", "amber"), "media": ("🟡 Media", "amber"), "baja": ("🟢 Baja", "green")}
-AVATAR = {"assistant": "🤝", "user": "🧓"}
+URG = {"CRISIS": ("Emergencia", "red"), "MALTRATO": ("Posible maltrato", "red"), "alta": ("Alta", "amber"), "media": ("Media", "amber"), "baja": ("Baja", "green")}
+AVATAR = {"assistant": ":material/support_agent:", "user": ":material/person:"}
 
 def reiniciar():
     ss.hist, ss.turno, ss.clasif, ss.ultimo_info = [], 0, None, {}
@@ -156,7 +156,7 @@ def enviar(texto):
 
 # ------------------------------------------------------------------ pantalla
 N.encabezado(cfg["titulo_app"], cfg["texto_bienvenida"],
-             [f"👥 {st.session_state.get('_equipo')}", f"🎯 Para: {N.corto(cfg.get('usuario'), 70)}", f"💬 Hasta {MAX_TURNOS} mensajes", f"🔠 Letra {cfg.get('tamano_letra', 'grande')}"])
+             [f"{st.session_state.get('_equipo')}", f"Usuario: {N.corto(cfg.get('usuario'), 70)}", f"Hasta {MAX_TURNOS} mensajes", f"Letra {cfg.get('tamano_letra', 'grande')}"])
 N.aviso_ia()
 pend = sum(b["decision"] == "Pendiente" for b in bandeja)
 m1, m2, m3, m4 = st.columns(4)
@@ -165,12 +165,12 @@ m2.metric("Pendientes de revisión", pend)
 m3.metric("Emergencias o maltrato", sum(b["urgencia"] in ("CRISIS", "MALTRATO") for b in bandeja))
 m4.metric("Consultas a la IA", f"{ia.usadas()} de {ia.limite}")
 
-t1, t2 = st.tabs(["💬 1 · Conversación (vista de la persona)", "📥 2 · Bandeja de la red de apoyo"])
+t1, t2 = st.tabs(["1 · Conversación (vista de la persona)", "2 · Bandeja de la red de apoyo"])
 with t1:
     chat, lado = st.columns([1.7, 1], gap="large")
     with lado:
         with st.container(border=True):
-            st.markdown("**🎭 Simular como** · solo para pruebas del equipo")
+            st.markdown("**Simular como** · solo para pruebas del equipo")
             opciones = ["(escribir libremente)"] + [f"{r.id_persona} · {r.nombre_ficticio}, {r.edad} años ({r.quien_conversa.lower()})" for r in personas.itertuples()]
             sel = st.selectbox("Perfil ficticio", opciones, label_visibility="collapsed")
             pid = sel.split(" · ")[0] if sel.startswith("P") else "libre"
@@ -188,7 +188,7 @@ with t1:
         if not ss.hist:
             zona = st.empty()
             with zona.container(border=True):
-                st.markdown("#### 👋 Antes de empezar")
+                st.markdown("#### Antes de empezar")
                 ss.quien = st.radio("¿Quién conversa?", list(QUIEN), horizontal=True, key=f"quien_{ss.get('_n_conv', 0)}")
                 ok = st.checkbox(cfg["texto_consentimiento"], key=f"consent_{ss.get('_n_conv', 0)}")
                 if st.button(cfg["texto_boton"], type="primary", width="stretch"):
@@ -210,7 +210,7 @@ with t1:
             if msg:
                 ss.hist.append({"role": "user", "content": msg}); ss.turno += 1; ss.ultimo_info = {}
                 tipo = protocolo(msg)
-                if tipo:  # 🔒 protocolo fijo: no pasa por la IA
+                if tipo:  # [fijo] protocolo fijo: no pasa por la IA
                     activar_protocolo(tipo, msg, pid, "protocolo fijo")
                 elif ss.turno > MAX_TURNOS:
                     ss.hist.append({"role": "assistant", "content": "Llegamos al final de la conversación. Presione **Terminar** para ver su resumen."})
@@ -219,20 +219,20 @@ with t1:
                     with st.spinner("ConectaMayor está escribiendo…"):
                         texto, info = ia.llamar([{"role": "system", "content": sistema}] + ss.hist, "chat", f"{pid}_{ss.turno}", temperatura=0.5, max_tokens=350)
                     marca = MARCA.search(texto)
-                    if marca:  # 🔒 la IA reconoció una señal grave dicha de forma indirecta: se aplica el mismo protocolo fijo
+                    if marca:  # [fijo] la IA reconoció una señal grave dicha de forma indirecta: se aplica el mismo protocolo fijo
                         activar_protocolo("CRISIS" if marca.group(1) == "EMERGENCIA" else "MALTRATO", msg, pid, "señal indirecta reconocida por la IA")
                         ss.ultimo_info = info
                     else:
-                        if DIAGNOSTICO.search(texto) or MEDICAMENTO.search(texto):  # 🔒 validación: sin diagnósticos ni indicaciones de medicamentos
+                        if DIAGNOSTICO.search(texto) or MEDICAMENTO.search(texto):  # [fijo] validación: sin diagnósticos ni indicaciones de medicamentos
                             N.registrar({"tipo": "validacion", "tarea": "chat", "salida": texto, "nota": "indicación de salud bloqueada"})
                             texto = SIN_SALUD
-                            ss["_aviso_val"] = "🔒 La validación reemplazó la respuesta de la IA porque daba indicaciones de salud o medicamentos."
+                            ss["_aviso_val"] = "La validación reemplazó la respuesta de la IA porque daba indicaciones de salud o medicamentos."
                         elif EDADISMO.search(texto):
                             N.registrar({"tipo": "validacion", "tarea": "chat", "salida": texto, "nota": "lenguaje infantilizante"})
-                            ss["_aviso_val"] = "⚠️ La validación detectó lenguaje infantilizante en la respuesta de la IA (queda registrado)."
+                            ss["_aviso_val"] = "La validación detectó lenguaje infantilizante en la respuesta de la IA (queda registrado)."
                         ss.hist.append({"role": "assistant", "content": texto}); ss.ultimo_info = info
                 st.rerun()
-            if len(ss.hist) > 1 and st.button("✅ Terminar"):
+            if len(ss.hist) > 1 and st.button("Terminar conversación"):
                 solo = " ".join(m["content"] for m in ss.hist if m["role"] == "user")
                 DEMO["clasificar"]["actual"] = json.dumps(clasif_local(solo), ensure_ascii=False)
                 with st.spinner("Preparando su resumen…"):
@@ -250,7 +250,7 @@ with t1:
         if ss.clasif:
             c = ss.clasif
             pasos = "".join(f"<li>{N.md(p)}</li>" for p in c["hoja_de_ruta"])
-            N.tarjeta("🧭 Su hoja de ruta", f"<ol style='margin:0;padding-left:1.3em'>{pasos}</ol>", "ok")
+            N.tarjeta("Su hoja de ruta", f"<ol style='margin:0;padding-left:1.3em'>{pasos}</ol>", "ok")
             escuchar(" ".join(c["hoja_de_ruta"]))
             if c["servicio_sugerido"] in SERV:
                 N.tarjeta(f"Apoyo que podría servirle · {SERV[c['servicio_sugerido']]}", "<b>Cómo acceder:</b> " + N.md(ACCESO.get(c["servicio_sugerido"], "")), "info")
@@ -261,7 +261,7 @@ with t1:
                     N.registrar({"tipo": "decision_persona", "decision": q, "utilidad": util})
                     if q.startswith("Sí"): st.success(f"Listo. Se creó el caso {nuevo_caso(pid, c, 'conversación')}. Una persona lo revisará.")
                     else: st.info("Gracias por conversar. Si cambia de opinión, puede volver cuando quiera.")
-            st.button("🔄 Nueva conversación", on_click=reiniciar)
+            st.button("Nueva conversación", on_click=reiniciar)
 with t2:
     st.caption("Aquí llegan los casos. **La IA no contacta a nadie:** una persona de la red de apoyo revisa y decide. La bandeja la comparten todos los integrantes del equipo.")
     if not bandeja:
@@ -288,7 +288,7 @@ with t2:
             st.warning("Posible maltrato: antes de contactar, piensa si el contacto podría ponerla en riesgo (por ejemplo, si quien maltrata contesta el teléfono).")
         with st.expander("Conversación completa"): st.text(b["conversacion"])
         with st.container(border=True):
-            dec = st.radio("👤 Decisión humana (obligatoria)", ["Llamar hoy", "Visitar esta semana", "Derivar a otro servicio", "Cerrar sin acción"],
+            dec = st.radio("Decisión humana (obligatoria)", ["Llamar hoy", "Visitar esta semana", "Derivar a otro servicio", "Cerrar sin acción"],
                            index=None, key=f"d_{cid}", horizontal=True)
             nota = st.text_input("Nota (opcional)", key=f"n_{cid}")
             if st.button("Registrar decisión", type="primary"):
