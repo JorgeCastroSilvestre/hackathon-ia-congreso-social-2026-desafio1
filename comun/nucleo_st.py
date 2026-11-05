@@ -24,6 +24,7 @@ AVISO_DEMO = ("Se muestra una respuesta de demostración: la IA no respondió. E
 # Proveedores compatibles con la API de OpenAI. Para sumar otro (por ejemplo, si la organización consigue una nueva clave)
 # basta con agregarlo en secrets: [ia.<nombre>] api_key, modelos = [...] y, si no está en esta lista, url = ".../chat/completions".
 PROVEEDORES = {
+    "anthropic":  {"url": "sdk", "modelos": ["claude-opus-5-5"]},   # Claude: usa el SDK oficial de Anthropic (no la URL)
     "groq":       {"url": "https://api.groq.com/openai/v1/chat/completions", "modelos": ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]},
     "mistral":    {"url": "https://api.mistral.ai/v1/chat/completions", "modelos": ["mistral-small-latest", "ministral-8b-latest"]},
     "openai":     {"url": "https://api.openai.com/v1/chat/completions", "modelos": ["gpt-4o-mini"]},
@@ -292,7 +293,7 @@ class IA:
             modelos = _secret(f"ia.{p}.modelos")
             if not modelos:  # formato anterior: modelo + modelo_respaldo
                 modelos = [m for m in (_secret(f"ia.{p}.modelo"), _secret(f"ia.{p}.modelo_respaldo")) if m] or base["modelos"]
-            self.prov[p] = {"clave": str(_secret(f"ia.{p}.api_key", "") or ""), "url": _secret(f"ia.{p}.url", base["url"]),
+            self.prov[p] = {"proveedor": p, "clave": str(_secret(f"ia.{p}.api_key", "") or ""), "url": _secret(f"ia.{p}.url", base["url"]),
                             "modelos": [str(m) for m in modelos]}
         self.cadena = [(p, m) for p in self.orden if self.prov[p]["clave"] and self.prov[p]["url"] for m in self.prov[p]["modelos"]]
         self.limite = int(_secret("ia.limite_consultas_por_equipo", 120))
@@ -346,7 +347,31 @@ class IA:
         return texto, info
 
     @staticmethod
+    def _claude(c, mensajes, max_tokens):
+        """Claude con el SDK oficial de Anthropic. El pensamiento queda activo (no se puede apagar en los modelos actuales):
+        se usa esfuerzo bajo y margen de tokens para que alcance la respuesta. Las reglas de formato JSON ya van en el prompt."""
+        import anthropic  # importación aquí: si falta el paquete, solo falla este proveedor y la app pasa al siguiente
+        sistema = "\n\n".join(m["content"] for m in mensajes if m["role"] == "system")
+        conv = [{"role": m["role"], "content": m["content"]} for m in mensajes if m["role"] in ("user", "assistant")]
+        if conv and conv[0]["role"] == "assistant":  # la conversación de A parte con el saludo del asistente
+            conv.insert(0, {"role": "user", "content": "(La persona abre la conversación.)"})
+        cliente = anthropic.Anthropic(api_key=c["clave"], timeout=60.0, max_retries=1)
+        pedido = dict(model=c["modelo"], max_tokens=max_tokens + 4000, system=sistema, messages=conv,
+                      output_config={"effort": str(_secret("ia.anthropic.esfuerzo", "low"))})
+        try:  # si Claude declina por seguridad, la API reintenta sola con el modelo de respaldo adecuado
+            r = cliente.beta.messages.create(**pedido, betas=["server-side-fallback-2026-07-01"], fallbacks="default")
+        except TypeError:  # versión del SDK sin ese parámetro: se pide sin respaldo
+            r = cliente.messages.create(**pedido)
+        if r.stop_reason == "refusal":
+            raise ValueError("Claude no respondió esta consulta (rechazo por seguridad)")
+        texto = "".join(b.text for b in r.content if getattr(b, "type", "") == "text").strip()
+        if not texto: raise ValueError(f"Claude devolvió una respuesta vacía ({r.stop_reason})")
+        return texto
+
+    @staticmethod
     def _post(c, mensajes, json_mode, temperatura, max_tokens):
+        if c.get("proveedor") == "anthropic":
+            return IA._claude(c, mensajes, max_tokens)
         cuerpo = {"model": c["modelo"], "messages": mensajes, "temperature": temperatura, "max_tokens": max_tokens}
         if "gpt-oss" in str(c["modelo"]):  # modelos que razonan antes de responder: razonamiento corto y margen de tokens
             # "medium" respeta mejor el TONO de la planilla; "low" gasta menos. Se elige en secrets: [ia] razonamiento
