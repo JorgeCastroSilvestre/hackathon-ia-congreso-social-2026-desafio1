@@ -24,7 +24,7 @@ AVISO_DEMO = ("Se muestra una respuesta de demostración: la IA no respondió. E
 # Proveedores compatibles con la API de OpenAI. Para sumar otro (por ejemplo, si la organización consigue una nueva clave)
 # basta con agregarlo en secrets: [ia.<nombre>] api_key, modelos = [...] y, si no está en esta lista, url = ".../chat/completions".
 PROVEEDORES = {
-    "anthropic":  {"url": "sdk", "modelos": ["claude-opus-5-5"]},   # Claude: usa el SDK oficial de Anthropic (no la URL)
+    "anthropic":  {"url": "sdk", "modelos": ["claude-haiku-5-5"]},   # Claude: usa el SDK oficial de Anthropic (no la URL)
     "groq":       {"url": "https://api.groq.com/openai/v1/chat/completions", "modelos": ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]},
     "mistral":    {"url": "https://api.mistral.ai/v1/chat/completions", "modelos": ["mistral-small-latest", "ministral-8b-latest"]},
     "openai":     {"url": "https://api.openai.com/v1/chat/completions", "modelos": ["gpt-4o-mini"]},
@@ -358,9 +358,13 @@ class IA:
         cliente = anthropic.Anthropic(api_key=c["clave"], timeout=60.0, max_retries=1)
         pedido = dict(model=c["modelo"], max_tokens=max_tokens + 4000, system=sistema, messages=conv,
                       output_config={"effort": str(_secret("ia.anthropic.esfuerzo", "low"))})
-        try:  # si Claude declina por seguridad, la API reintenta sola con el modelo de respaldo adecuado
-            r = cliente.beta.messages.create(**pedido, betas=["server-side-fallback-2026-07-01"], fallbacks="default")
-        except TypeError:  # versión del SDK sin ese parámetro: se pide sin respaldo
+        r = None
+        if c["modelo"] in ("claude-opus-5-5", "claude-sonnet-5-5"):  # Haiku no tiene respaldo ante rechazos
+            try:  # si Claude declina por seguridad, la API reintenta sola con el modelo de respaldo adecuado
+                r = cliente.beta.messages.create(**pedido, betas=["server-side-fallback-2026-07-01"], fallbacks="default")
+            except TypeError:  # versión del SDK sin ese parámetro: se pide sin respaldo
+                r = None
+        if r is None:
             r = cliente.messages.create(**pedido)
         if r.stop_reason == "refusal":
             raise ValueError("Claude no respondió esta consulta (rechazo por seguridad)")
