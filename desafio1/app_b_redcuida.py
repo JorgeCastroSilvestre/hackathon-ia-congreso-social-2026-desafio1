@@ -9,6 +9,7 @@ import numpy as np, pandas as pd, streamlit as st
 import nucleo_st as N
 import servicios as S
 import generar_registros as G
+import validaciones as V
 
 N.iniciar("D1-B", "RedCuida IA", "", subtitulo="Envejecer con autonomía · Hackathon IA Aplicada · Congreso Social UC 2026", chip="Desafío 1 · Personas mayores")
 N.acceso()
@@ -118,7 +119,8 @@ def validar(texto):
     if malos: problemas.append(f"cita servicios que no existen en el catálogo: {', '.join(malos)}")
     if not codigos: problemas.append("no cita ningún servicio del catálogo con su código")
     if DIAGNOSTICO.search(texto): problemas.append("nombra enfermedades o diagnósticos")
-    if EDADISMO.search(texto): problemas.append("usa lenguaje infantilizante o etiquetas")
+    if EDADISMO.search(texto) or V.EDADISMO.search(texto): problemas.append("usa lenguaje infantilizante o etiquetas")
+    if V.MEDICACION.search(texto): problemas.append("incluye posibles indicaciones de medicamentos")
     if not re.search(r"semana\s+\d", texto, re.I): problemas.append("no cita la semana de los registros")
     return problemas
 
@@ -142,7 +144,8 @@ def demo(f):
             "\n\n3. Sugerencia para el próximo contacto\nVisitarla esta semana, preguntarle directamente cómo ha estado y qué necesita, "
             "y acordar con ella el siguiente paso.")
 ia = N.IA({"ficha": {r["id_persona"]: demo(r) for _, r in cola.iterrows()}})
-decisiones = N.estado_equipo("decisiones")
+decisiones_completas = N.estado_equipo("decisiones")
+decisiones = {pid: d["decision"] for pid, d in decisiones_completas.items()}
 cola["decision"] = cola.id_persona.map(lambda i: decisiones.get(i, "Pendiente"))
 OPCIONES = ["Visitar esta semana", "Llamar esta semana", "Activar protocolo", "Derivar a un servicio", "Seguir observando"]
 
@@ -216,40 +219,44 @@ with t2:
             with st.spinner("La IA está leyendo los registros…"):
                 texto, info = ia.llamar([{"role": "system", "content": sistema}, {"role": "user", "content": pet}], "ficha", sel)
             st.session_state[clave] = (texto, info)
+            st.session_state.pop(f"ta_{sel}", None)
         if clave not in st.session_state:
             N.tarjeta("Propuesta de la IA", "Presiona el botón para que la IA lea las notas de las últimas semanas y prepare el próximo contacto: "
                       "qué muestran los registros, qué apoyos del catálogo podrían servir y qué hacer en la próxima visita o llamada.", "gray")
         else:
             texto, info = st.session_state[clave]
             N.aviso_si_demo(info)
+            with st.expander("Revisar y editar el texto antes de usarlo", expanded=bool(validar(texto))):
+                texto = st.text_area("Propuesta de la IA", texto, height=260, key=f"ta_{sel}", label_visibility="collapsed")
             prob = validar(texto)
             if prob:
                 st.error("La validación detectó problemas. Corrige el texto antes de usarlo: " + "; ".join(prob))
-                N.registrar({"tipo": "validacion", "tarea": "ficha", "id_persona": sel, "nota": "; ".join(prob)})
             else:
                 st.markdown(N.badge("Validación superada: cita registros y servicios del catálogo, sin diagnósticos", "green"), unsafe_allow_html=True)
             sec = secciones(texto)
-            if sec:
+            if sec and not prob:
                 cods = [c for c in dict.fromkeys(re.findall(r"\[([A-Z]{1,3}\d{1,3})\]", sec[1])) if c in set(catalogo.id_servicio)]
                 acceso = "".join(f"<br>{N.badge(c, 'teal')} {N.md(r.como_acceder)}" for c in cods for r in catalogo[catalogo.id_servicio == c].itertuples())
                 N.tarjeta("1 · Lo que muestran los registros", N.md(sec[0]), "info")
                 N.tarjeta("2 · Apoyos posibles", N.md(sec[1]) + (f"<br><br><b>Cómo se accede:</b>{acceso}" if acceso else ""), "ok")
                 N.tarjeta("3 · Sugerencia para el próximo contacto", N.md(sec[2]), "warn" if prob else "ok")
-            with st.expander("Revisar y editar el texto antes de usarlo", expanded=not sec):
-                st.text_area("Propuesta de la IA", texto, height=260, key=f"ta_{sel}", label_visibility="collapsed")
             with st.container(border=True):
                 st.markdown("#### Decisión humana (obligatoria)")
                 dec = st.radio("¿Qué decides?", OPCIONES, index=None, key=f"dec_{sel}", horizontal=True)
                 util = st.select_slider("¿La propuesta te ahorró trabajo?", ["Nada", "Poco", "Algo", "Mucho"], value="Algo", key=f"ut_{sel}")
                 nota = st.text_input("Nota (opcional)", key=f"nota_{sel}")
                 if st.button("Registrar decisión", width="stretch"):
-                    if not dec: st.warning("Elige una decisión: la IA no decide por ti.")
+                    problemas = validar(st.session_state.get(f"ta_{sel}", texto))
+                    if problemas:
+                        st.error("Corrige la propuesta antes de registrarla: " + "; ".join(problemas))
+                        N.registrar({"tipo": "validacion", "tarea": "ficha", "id_persona": sel, "nota": "; ".join(problemas)})
+                    elif not dec: st.warning("Elige una decisión: la IA no decide por ti.")
                     else:
-                        decisiones[sel] = dec
-                        N.registrar({"tipo": "decision_humana", "tarea": "ficha", "id_persona": sel, "decision": dec, "utilidad": util,
-                                     "nota": nota, "salida": st.session_state.get(f"ta_{sel}", texto)})
-                        st.session_state["_flash"] = f"Decisión registrada para {sel}: **{dec}**"
-                        st.rerun()
+                        datos = {"decision": dec, "utilidad": util, "nota": nota, "salida": texto}
+                        if N.guardar_elemento("decisiones", sel, datos):
+                            N.registrar({"tipo": "decision_humana", "tarea": "ficha", "id_persona": sel, **datos})
+                            st.session_state["_flash"] = f"Decisión registrada para {sel}: **{dec}**"
+                            st.rerun()
                 if st.session_state.get("_flash"): st.success(st.session_state.pop("_flash"))
 
 with t3:

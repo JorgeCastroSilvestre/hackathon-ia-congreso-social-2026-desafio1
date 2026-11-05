@@ -15,6 +15,7 @@ import pandas as pd
 import requests
 import base64
 import streamlit as st
+import persistencia as P
 
 AVISO_IA = ("**Esta herramienta usa inteligencia artificial.** Puede equivocarse y **no reemplaza el criterio "
             "de una persona**: la decisión final siempre es humana. Lo que se consulta y responde queda registrado "
@@ -58,19 +59,94 @@ def _secret(ruta, defecto=None):
 def _global():
     return {"lock": threading.Lock(), "consultas": {}, "equipos": {}}
 
+def identidad_equipo() -> str:
+    return st.session_state.get("_codigo") or st.session_state.get("_equipo", "demo")
+
+
+def _clave_estado(clave):
+    return f"{st.session_state.get('_app')}|{identidad_equipo()}|{clave}"
+
+
+def _hoja_estado():
+    sid, cred = _secret("registro.sheet_id"), _secret("gcp_service_account")
+    if not sid and not cred:
+        return None
+    if not sid or not cred:
+        raise ValueError("Falta registro.sheet_id o gcp_service_account.")
+    # No guardar este cliente en session_state: se descarta al salir y no se
+    # reutiliza una conexión con otra configuración de secrets.
+    import gspread
+    libro = gspread.service_account_from_dict(dict(cred)).open_by_key(sid)
+    return libro.worksheet(P.PESTANA)
+
+
 def estado_equipo(clave: str) -> dict:
+    """Recupera estado confirmado. La pestaña se prepara antes del despliegue."""
     g = _global()
     with g["lock"]:
-        return g["equipos"].setdefault(f"{st.session_state.get('_app')}|{st.session_state.get('_equipo')}|{clave}", {})
+        anterior = dict(g["equipos"].setdefault(_clave_estado(clave), {}))
+    try:
+        ws = _hoja_estado()
+        if ws is None:
+            st.warning("Modo temporal: sin planilla central, los casos y decisiones se pierden al reiniciar. Descargue el respaldo antes de salir.")
+            return anterior
+        datos = P.reconstruir(ws.get_all_values(), st.session_state.get("_app"), identidad_equipo(), clave)
+        if clave == "bandeja":
+            campos = ("caso", "persona", "conversa", "origen", "urgencia", "necesidades", "servicio_sugerido", "resumen_ia", "conversacion", "decision")
+            if any(any(not isinstance(d.get(c), str) for c in campos) or d["caso"] != i for i, d in datos.items()):
+                raise ValueError("Hay un caso con estructura inválida.")
+        if clave == "decisiones" and any(not isinstance(d.get("decision"), str) for d in datos.values()):
+            raise ValueError("Hay una decisión con estructura inválida.")
+        with g["lock"]:
+            g["equipos"][_clave_estado(clave)] = datos
+        st.session_state.pop("_error_estado", None)
+        st.caption("Casos y decisiones recuperados de la planilla central.")
+        return dict(datos)
+    except Exception:
+        st.session_state["_error_estado"] = True
+        st.error("No se pudo leer el estado central. La vista puede estar incompleta. No se confirmarán cambios hasta recuperar la conexión; revise la pestaña estado_d1_v1 y sus permisos.")
+        return anterior
+
+
+def guardar_elemento(coleccion, elemento, datos) -> bool:
+    """Solo confirma la operación después de persistir; conserva el ID al reintentar."""
+    g = _global()
+    firma = hashlib.sha256(json.dumps([coleccion, elemento, datos], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    pendientes = st.session_state.setdefault("_eventos_pendientes", {})
+    try:
+        fila = pendientes.setdefault(firma, P.evento(st.session_state.get("_app"), identidad_equipo(), coleccion, elemento, datos))
+        ws = _hoja_estado()
+        if ws is not None:
+            if st.session_state.get("_error_estado"):
+                raise ValueError("No se pudo verificar la lectura de estado.")
+            P.guardar(ws, fila)
+        with g["lock"]:
+            g["equipos"].setdefault(_clave_estado(coleccion), {})[elemento] = dict(datos)
+        for clave, pendiente in list(pendientes.items()):
+            if pendiente[2:6] == fila[2:6]: pendientes.pop(clave, None)
+        return True
+    except Exception:
+        st.error("No se confirmó el guardado. Mantenga esta sesión abierta y reintente cuando vuelva la conexión. No reinicie la app todavía.")
+        return False
+
+
+def cerrar_sesion():
+    # Incluye consentimientos, historial, widgets, propuestas y clientes antiguos.
+    for clave in list(st.session_state):
+        del st.session_state[clave]
 
 # ------------------------------------------------------------------ registro
 _lock = threading.Lock()
 def registrar(ev: dict):
     ev = {"marca_tiempo": datetime.datetime.now().isoformat(timespec="seconds"), "app": st.session_state.get("_app"),
+          "equipo_codigo": identidad_equipo(),
           "equipo": st.session_state.get("_equipo"), "planilla": st.session_state.get("_sheet_url", ""), **ev}
-    with _lock:
-        with open(REGISTRO, "a", encoding="utf-8") as f:
-            f.write(json.dumps(ev, ensure_ascii=False, default=str) + "\n")
+    try:
+        with _lock:
+            with open(REGISTRO, "a", encoding="utf-8") as f:
+                f.write(json.dumps(ev, ensure_ascii=False, default=str) + "\n")
+    except OSError:
+        st.session_state["_aviso_reg"] = "No se pudo escribir el registro local; revise el respaldo central antes de reiniciar."
     _copiar_central(ev)
 
 def _copiar_central(ev):
@@ -80,9 +156,11 @@ def _copiar_central(ev):
     try:
         import gspread  # type: ignore
         if "_ws" not in st.session_state:
-            st.session_state["_ws"] = gspread.service_account_from_dict(dict(cred)).open_by_key(sid).sheet1
+            libro = gspread.service_account_from_dict(dict(cred)).open_by_key(sid)
+            # El registro histórico nunca debe escribir dentro de la nueva pestaña de estado.
+            st.session_state["_ws"] = next(h for h in libro.worksheets() if h.title != P.PESTANA)
         st.session_state["_ws"].append_row([str(ev.get(k, ""))[:45000] for k in
-                                            ("marca_tiempo", "app", "equipo", "tipo", "tarea", "modo", "proveedor", "entrada", "salida", "decision", "nota")])
+                                            ("marca_tiempo", "app", "equipo", "tipo", "tarea", "modo", "proveedor", "entrada", "salida", "decision", "nota")], value_input_option="RAW")
     except Exception as e:
         st.session_state["_aviso_reg"] = f"No se pudo copiar el registro a la planilla central: {str(e)[:80]}"
 
@@ -95,7 +173,7 @@ def registro_equipo() -> pd.DataFrame:
             e = json.loads(l)
         except Exception:
             continue
-        if e.get("equipo") == st.session_state.get("_equipo") and e.get("app") == st.session_state.get("_app"):
+        if e.get("equipo_codigo") == identidad_equipo() and e.get("app") == st.session_state.get("_app"):
             filas.append(e)
     return pd.DataFrame(filas)
 
@@ -220,11 +298,13 @@ def acceso() -> str:
             cla = c2.text_input("Clave", type="password").strip()
             if st.button("Entrar", type="primary", width="stretch"):
                 if cod in equipos and cla == str(equipos[cod].get("clave", "")):
+                    cerrar_sesion()
                     st.session_state["_equipo"] = equipos[cod].get("nombre", cod)
                     st.session_state["_codigo"] = cod
                     registrar({"tipo": "ingreso"}); st.rerun()
                 elif not equipos and cod == "DEMO" and cla == "demo":
-                    st.session_state["_equipo"] = "demo"; st.rerun()
+                    cerrar_sesion()
+                    st.session_state["_equipo"] = "demo"; st.session_state["_codigo"] = "DEMO"; st.rerun()
                 else:
                     st.error("Código o clave incorrectos. Los entrega su mentor.")
             st.caption("El código y la clave los entrega su mentor." if equipos else "Instalación de prueba: código `demo`, clave `demo`.")
@@ -327,7 +407,7 @@ class IA:
     def _pk(self, p, modelo):  # la pausa depende también de la clave: si se corrige la clave en secrets, se vuelve a probar de inmediato
         return (p, modelo, hashlib.sha1(self.prov[p]["clave"].encode()).hexdigest()[:8])
 
-    def _k(self): return f"{st.session_state.get('_app')}|{st.session_state.get('_equipo')}"
+    def _k(self): return f"{st.session_state.get('_app')}|{identidad_equipo()}"
     def usadas(self): return _global()["consultas"].get(self._k(), 0)
 
     def estado(self):
@@ -338,7 +418,7 @@ class IA:
 
     def proveedores(self) -> str:
         pausas = _global().get("pausas", {})
-        return " → ".join(f"{'⏸️ ' if pausas.get(self._pk(p, m), 0) > time.time() else ''}{p}/{m.split('/')[-1]}" for p, m in self.cadena) or "ninguno"
+        return " → ".join(f"{'En pausa: ' if pausas.get(self._pk(p, m), 0) > time.time() else ''}{p}/{m.split('/')[-1]}" for p, m in self.cadena) or "ninguno"
 
     def llamar(self, mensajes, tarea, clave_demo="", json_mode=False, temperatura=0.3, max_tokens=700):
         info = {"tipo": "llamada_ia", "tarea": tarea, "entrada": mensajes[-1]["content"],
@@ -471,8 +551,20 @@ def pie(ia: IA):
         st.download_button("Descargar registro del equipo", df.to_csv(index=False).encode("utf-8"),
                            file_name=f"registro_{st.session_state.get('_app')}_{st.session_state.get('_equipo')}.csv",
                            mime="text/csv", width="stretch", disabled=df.empty)
-        if st.button("Salir", width="stretch"):
-            for k in ["_equipo", "_codigo", "_sheet_url"]: st.session_state.pop(k, None)
-            st.rerun()
+        g = _global()
+        with g["lock"]:
+            respaldo = {c: dict(g["equipos"].get(_clave_estado(c), {})) for c in ("bandeja", "decisiones")}
+        st.download_button("Descargar respaldo del estado", json.dumps({"app": st.session_state.get("_app"), "equipo_codigo": identidad_equipo(),
+                           "estado": respaldo, "eventos_sin_confirmar": list(st.session_state.get("_eventos_pendientes", {}).values()),
+                           "casos_sin_confirmar": st.session_state.get("_casos_por_guardar", {})}, ensure_ascii=False, indent=2),
+                           file_name="respaldo_estado.json", mime="application/json", width="stretch")
+        pendientes = bool(st.session_state.get("_casos_por_guardar") or st.session_state.get("_eventos_pendientes"))
+        if pendientes: st.warning("Hay cambios sin confirmar. Guárdelos antes de salir.")
+        if st.session_state.get("_eventos_pendientes") and not st.session_state.get("_casos_por_guardar"):
+            if st.button("Reintentar cambios pendientes", width="stretch"):
+                for fila in list(st.session_state["_eventos_pendientes"].values()):
+                    guardar_elemento(fila[4], fila[5], json.loads(fila[6]))
+                st.rerun()
+        st.button("Salir", width="stretch", disabled=pendientes, on_click=cerrar_sesion)
     st.markdown('<div class="pie-nota">Prototipo con datos ficticios · Hackathon IA Aplicada · Congreso Social UC 2026 · '
                 'La decisión final siempre es de una persona.</div>', unsafe_allow_html=True)

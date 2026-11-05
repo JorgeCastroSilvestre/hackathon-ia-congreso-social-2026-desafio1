@@ -1,6 +1,6 @@
 """Desafío 1 · Variante A · ConectaMayor IA (conversación de orientación para personas mayores o quien las acompaña).
 Los equipos la personalizan en su copia de la planilla (pestañas `config` y `servicios_extra`)."""
-import json, re, sys
+import json, re, sys, uuid
 from pathlib import Path
 AQUI = Path(__file__).parent
 sys.path.insert(0, str(AQUI.parent / "comun")); sys.path.insert(0, str(AQUI))
@@ -8,6 +8,7 @@ import pandas as pd, streamlit as st
 import streamlit.components.v1 as components
 import nucleo_st as N
 import servicios as S
+import validaciones as V
 
 N.iniciar("D1-A", "ConectaMayor IA", "", subtitulo="Envejecer con autonomía · Hackathon IA Aplicada · Congreso Social UC 2026", chip="Desafío 1 · Personas mayores")
 N.acceso()
@@ -80,6 +81,19 @@ _EMERGENCIA = [r"ca[ií]\w*.{0,60}no (me|se|le) (pude|pudo|puedo|puede|pod[ií]a
                r"se (me|le) (durmi[oó]|torci[oó]|cay[oó]) (la cara|un lado|el brazo|la boca)", r"no (despierta|reacciona)", r"(perdi[oó]|perd[ií]) el conocimiento", r"se desmay",
                r"cansad[oa] de vivir", r"(mejor|prefiero|quisiera) no despertar", r"no despertar m[aá]s", r"para qu[eé] seguir( viviendo)?", r"ya no quiero (estar|seguir)",
                r"(estar[ií]an|vivir[ií]an) (mejor|m[aá]s tranquil\w*) sin m[ií]", r"(soy|ser) una carga", r"\bdesaparecer\b", r"morirme", r"quiero morir"]
+# Se agregan expresiones acotadas: las listas fijas anteriores se conservan.
+_MALTRATO += [
+    r"\b(me|le) (dejaron|dejan|dej[oó]) sin (comida|agua|alimentos|cuidados|remedios)\b",
+    r"\bno (me|le) permiten (comer|salir|pedir ayuda)\b",
+    r"\b(me|le) (obliga|obligan|oblig[oó]) a (firmar|entregar (mi|su|la) (clave|tarjeta|pensi[oó]n))\b",
+    r"\b(me|le) (esconde|esconden|retiene|retienen) (mis |sus |los |las )?(remedios|medicamentos|tarjetas)\b",
+    r"\b(me|le|la|lo) (dejaron|dejan) sol[oa].{0,50}\b(no (puedo|puede) (cocinar|comer|moverme|moverse)|sin (comida|cuidados))\b",
+]
+_EMERGENCIA += [
+    r"\b(me ca[ií]|se cay[oó]).{0,60}\b(sigo|sigue|estoy|est[aá]) (tirad[oa]|en el suelo)\b",
+    r"\b(no puedo|no puede) (hablar|mover un brazo|mover una pierna) de repente\b",
+    r"\b(quiero|quiere|pienso en) (quitarme|quitarse) la vida\b",
+]
 MARCA = re.compile(r"\[(MALTRATO|EMERGENCIA)\]")
 MENSAJE_MALTRATO = ("Gracias por contarlo. Nadie tiene derecho a maltratar, amenazar ni quitarle su dinero a una persona mayor.\n\n"
                     "• **Fono Mayor 800 400 035** (gratuito, SENAMA): orienta y recibe denuncias de maltrato, abandono o abuso económico.\n"
@@ -127,7 +141,7 @@ def palabras_por_frase(textos):
     frases = [f for t in textos for f in re.split(r"[.!?¿¡]+\s*", re.sub(r"[*_]", "", t)) if len(f.split()) > 1]
     return round(sum(len(f.split()) for f in frases) / len(frases), 1) if frases else 0
 
-bandeja = N.estado_equipo("bandeja").setdefault("casos", [])
+bandeja = list(N.estado_equipo("bandeja").values())
 ss = st.session_state
 ss.setdefault("hist", []); ss.setdefault("turno", 0); ss.setdefault("clasif", None); ss.setdefault("ultimo_info", {}); ss.setdefault("quien", list(QUIEN)[0])
 conv_txt = lambda h: "\n".join(f"{'Persona' if m['role'] == 'user' else 'Asistente'}: {m['content']}" for m in h)
@@ -136,14 +150,35 @@ AVATAR = {"assistant": ":material/support_agent:", "user": ":material/person:"}
 
 def reiniciar():
     ss.hist, ss.turno, ss.clasif, ss.ultimo_info = [], 0, None, {}
+    for clave in ("_caso_id", "_respuesta_enviada", "_pendiente", "_aviso_val"):
+        ss.pop(clave, None)
     ss["_n_conv"] = ss.get("_n_conv", 0) + 1
 
 def nuevo_caso(pid, c, origen):
-    cid = f"C{len(bandeja) + 1:03d}"
-    bandeja.append({"caso": cid, "persona": pid, "conversa": "Persona mayor" if ss.quien == list(QUIEN)[0] else "Apoyo cercano", "origen": origen,
+    cid = ss.setdefault("_caso_id", "C-" + uuid.uuid4().hex)
+    existente = next((b for b in bandeja if b["caso"] == cid), None)
+    if existente and origen == "conversación":
+        return cid  # el protocolo ya creó el caso de esta conversación
+    caso = {"caso": cid, "persona": pid, "conversa": "Persona mayor" if ss.quien == list(QUIEN)[0] else "Apoyo cercano", "origen": origen,
                     "urgencia": c.get("urgencia", "-"), "necesidades": ", ".join(c.get("necesidades", [])), "servicio_sugerido": c.get("servicio_sugerido", "-"),
-                    "resumen_ia": c.get("resumen", ""), "conversacion": conv_txt(ss.hist), "decision": "Pendiente"})
-    N.registrar({"tipo": "caso_creado", "caso": cid, "origen": origen, "urgencia": c.get("urgencia")}); return cid
+                    "resumen_ia": c.get("resumen", ""), "conversacion": conv_txt(ss.hist), "decision": "Pendiente"}
+    if existente:
+        caso["decision"] = existente["decision"]
+        caso["nota_decision"] = existente.get("nota_decision", "")
+        # Una señal posterior de maltrato no baja una emergencia existente.
+        if existente["urgencia"] == "CRISIS": caso["urgencia"] = "CRISIS"
+    if not N.guardar_elemento("bandeja", cid, caso):
+        ss.setdefault("_casos_por_guardar", {})[cid] = caso
+        return None
+    ss.setdefault("_casos_por_guardar", {}).pop(cid, None)
+    if existente: existente.update(caso)
+    else: bandeja.append(caso)
+    N.registrar({"tipo": "caso_creado", "caso": cid, "origen": origen, "urgencia": c.get("urgencia")})
+    return cid
+
+
+def inseguro(texto):
+    return bool(DIAGNOSTICO.search(texto) or V.DIAGNOSTICO.search(texto) or MEDICAMENTO.search(texto) or V.MEDICACION.search(texto) or EDADISMO.search(texto) or V.EDADISMO.search(texto))
 
 def activar_protocolo(tipo, msg, pid, origen):
     texto = MENSAJE_EMERGENCIA if tipo == "CRISIS" else MENSAJE_MALTRATO
@@ -159,6 +194,14 @@ def enviar(texto):
 N.encabezado(cfg["titulo_app"], cfg["texto_bienvenida"],
              [f"{st.session_state.get('_equipo')}", f"Usuario: {N.corto(cfg.get('usuario'), 70)}", f"Hasta {MAX_TURNOS} mensajes", f"Letra {cfg.get('tamano_letra', 'grande')}"])
 N.aviso_ia()
+if ss.get("_casos_por_guardar"):
+    st.error("Hay casos pendientes de guardar. Mantenga esta sesión abierta hasta confirmarlos.")
+    st.download_button("Respaldar casos sin confirmar", json.dumps(list(ss["_casos_por_guardar"].values()), ensure_ascii=False, indent=2),
+                       file_name="casos_sin_confirmar.json", mime="application/json")
+    if st.button("Reintentar guardado de casos"):
+        for cid, caso in list(ss["_casos_por_guardar"].items()):
+            if N.guardar_elemento("bandeja", cid, caso): ss["_casos_por_guardar"].pop(cid)
+        st.rerun()
 pend = sum(b["decision"] == "Pendiente" for b in bandeja)
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("Casos en la bandeja", len(bandeja))
@@ -224,13 +267,14 @@ with t1:
                         activar_protocolo("CRISIS" if marca.group(1) == "EMERGENCIA" else "MALTRATO", msg, pid, "señal indirecta reconocida por la IA")
                         ss.ultimo_info = info
                     else:
-                        if DIAGNOSTICO.search(texto) or MEDICAMENTO.search(texto):  # [fijo] validación: sin diagnósticos ni indicaciones de medicamentos
+                        if DIAGNOSTICO.search(texto) or V.DIAGNOSTICO.search(texto) or MEDICAMENTO.search(texto) or V.MEDICACION.search(texto):  # [fijo] validación
                             N.registrar({"tipo": "validacion", "tarea": "chat", "salida": texto, "nota": "indicación de salud bloqueada"})
                             texto = SIN_SALUD
                             ss["_aviso_val"] = "La validación reemplazó la respuesta de la IA porque daba indicaciones de salud o medicamentos."
-                        elif EDADISMO.search(texto):
+                        elif EDADISMO.search(texto) or V.EDADISMO.search(texto):
                             N.registrar({"tipo": "validacion", "tarea": "chat", "salida": texto, "nota": "lenguaje infantilizante"})
-                            ss["_aviso_val"] = "La validación detectó lenguaje infantilizante en la respuesta de la IA (queda registrado)."
+                            texto = "Estoy aquí para orientarle con respeto. ¿Qué apoyo necesita?"
+                            ss["_aviso_val"] = "La validación reemplazó una respuesta con lenguaje infantilizante (queda registrado)."
                         ss.hist.append({"role": "assistant", "content": texto}); ss.ultimo_info = info
                 st.rerun()
             if len(ss.hist) > 1 and st.button("Terminar conversación"):
@@ -240,13 +284,11 @@ with t1:
                     texto, info = ia.llamar([{"role": "system", "content": "Respondes solo JSON válido. " + N.personalizacion(cfg)},
                                              {"role": "user", "content": CLASIFICAR.format(categorias=", ".join(CATEGORIAS), catalogo=S.texto(catalogo), conv=conv_txt(ss.hist))}],
                                             "clasificar", "actual", json_mode=True, temperatura=0)
-                c = N.extraer_json(texto)
-                if not isinstance(c, dict): c = clasif_local(solo)
-                c["necesidades"] = [n for n in c.get("necesidades", []) if n in CATEGORIAS] or ["ninguna"]
-                if c.get("servicio_sugerido") not in SERV: c["servicio_sugerido"] = "ninguno"
-                pasos = c.get("hoja_de_ruta") or []
-                c["hoja_de_ruta"] = [str(p) for p in (pasos if isinstance(pasos, list) else [pasos])][:3]
-                if any(MEDICAMENTO.search(p) or DIAGNOSTICO.search(p) for p in c["hoja_de_ruta"]): c["hoja_de_ruta"] = [SIN_SALUD]
+                original = N.extraer_json(texto)
+                c = V.normalizar_clasificacion(original, clasif_local(solo), CATEGORIAS, SERV, inseguro)
+                if c != original:
+                    N.registrar({"tipo": "validacion", "tarea": "clasificar", "nota": "JSON normalizado o reemplazado por clasificación local"})
+                    ss["_aviso_val"] = "El resumen fue revisado; se corrigió su estructura o se usó la clasificación local segura."
                 ss.clasif = c; ss.ultimo_info = info; st.rerun()
         if ss.clasif:
             c = ss.clasif
@@ -258,11 +300,17 @@ with t1:
             with st.container(border=True):
                 q = st.radio("¿Quiere que **una persona** de la red de apoyo se comunique con usted? Es voluntario.", ["Sí, quiero que me contacten", "No, gracias"], index=None)
                 util = st.select_slider("¿Le sirvió esta conversación?", ["Nada", "Poco", "Algo", "Mucho"], value="Algo")
-                if st.button("Enviar respuesta", type="primary") and q:
-                    N.registrar({"tipo": "decision_persona", "decision": q, "utilidad": util})
-                    if q.startswith("Sí"): st.success(f"Listo. Se creó el caso {nuevo_caso(pid, c, 'conversación')}. Una persona lo revisará.")
-                    else: st.info("Gracias por conversar. Si cambia de opinión, puede volver cuando quiera.")
-            st.button("Nueva conversación", on_click=reiniciar)
+                if st.button("Enviar respuesta", type="primary", disabled=ss.get("_respuesta_enviada", False)):
+                    if not q: st.warning("Seleccione si quiere que le contacten.")
+                    else:
+                        cid = nuevo_caso(pid, c, "conversación") if q.startswith("Sí") else None
+                        if not q.startswith("Sí") or cid:
+                            ss["_respuesta_enviada"] = True
+                            N.registrar({"tipo": "decision_persona", "decision": q, "utilidad": util, "caso": cid})
+                            st.rerun()
+                if ss.get("_respuesta_enviada"):
+                    st.success("Respuesta registrada. En esta demostración no se contacta a nadie real.")
+            st.button("Nueva conversación", on_click=reiniciar, disabled=bool(ss.get("_casos_por_guardar")))
 with t2:
     st.caption("Aquí llegan los casos. **La IA no contacta a nadie:** una persona de la red de apoyo revisa y decide. La bandeja la comparten todos los integrantes del equipo.")
     if not bandeja:
@@ -295,7 +343,11 @@ with t2:
             if st.button("Registrar decisión", type="primary"):
                 if not dec: st.warning("Elige una decisión: la IA no decide por ti.")
                 else:
-                    b["decision"] = dec; N.registrar({"tipo": "decision_humana", "caso": cid, "decision": dec, "nota": nota})
-                    ss["_flash"] = f"{cid}: decisión registrada · **{dec}**"; st.rerun()
-            if ss.get("_flash"): st.success(ss.pop("_flash"))
+                    actualizado = {**b, "decision": dec, "nota_decision": nota}
+                    if N.guardar_elemento("bandeja", cid, actualizado):
+                        N.registrar({"tipo": "decision_humana", "caso": cid, "decision": dec, "nota": nota})
+                        ss["_flash"] = f"{cid}: decisión registrada · **{dec}**"; st.rerun()
+        st.download_button("Respaldar bandeja completa", json.dumps(bandeja, ensure_ascii=False, indent=2),
+                           file_name="bandeja_conectamayor.json", mime="application/json")
+        if ss.get("_flash"): st.success(ss.pop("_flash"))
 N.pie(ia)
