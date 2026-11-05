@@ -106,8 +106,8 @@ _CSS = """<style>
 html,body,[class*="css"],.stMarkdown,.stTextInput,.stButton,.stRadio,.stSelectbox{font-family:'Source Sans 3',system-ui,sans-serif}
 h1,h2,h3,h4{font-family:'Source Serif 4',Georgia,serif !important;color:var(--azul) !important;font-weight:700 !important;letter-spacing:-.005em}
 .block-container{padding-top:1.2rem;padding-bottom:3rem;max-width:1200px}
-.marca{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:6px 0 12px 0;margin:0 0 18px 0;border-bottom:1px solid var(--borde)}
-.marca .m-centro{flex:1;text-align:center;color:var(--gris);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase}
+.marca{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 16px;padding:6px 0 12px 0;margin:0 0 18px 0;border-bottom:1px solid var(--borde)}
+.marca .m-centro{order:3;flex-basis:100%;text-align:center;color:var(--gris);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase}
 .hero{background:#fff;border:1px solid var(--borde);border-top:4px solid var(--azul);border-radius:6px;padding:22px 28px 16px;margin:0 0 16px 0}
 .hero .h-ceja{color:var(--oro);font-size:.76rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;margin:0 0 6px 0}
 .hero .h-tit{font-family:'Source Serif 4',Georgia,serif;color:var(--azul);font-size:2rem;font-weight:700;line-height:1.15;margin:0 0 8px 0}
@@ -166,7 +166,7 @@ def logos():
     if uc and duoc:
         st.markdown(f'''<div class="marca">
             <img src="data:image/png;base64,{uc}" alt="Pontificia Universidad Católica de Chile" style="height:52px;width:auto">
-            <div class="m-centro">Hackathon de Inteligencia Artificial Aplicada<br>Congreso Social UC 2026</div>
+            <div class="m-centro">Hackathon de Inteligencia Artificial Aplicada · Congreso Social UC 2026</div>
             <img src="data:image/png;base64,{duoc}" alt="Duoc UC" style="height:32px;width:auto"></div>''', unsafe_allow_html=True)
 
 def encabezado(titulo, bienvenida, chips=(), ceja="Desafío 1 · Envejecer con autonomía"):
