@@ -165,7 +165,7 @@ m2.metric("Pendientes de revisión", pend)
 m3.metric("Emergencias o maltrato", sum(b["urgencia"] in ("CRISIS", "MALTRATO") for b in bandeja))
 m4.metric("Consultas a la IA", f"{ia.usadas()} de {ia.limite}")
 
-t1, t2 = st.tabs(["1 · Conversación (vista de la persona)", "2 · Bandeja de la red de apoyo"])
+t1, t2 = N.pestanas(["1 · Conversación (vista de la persona)", "2 · Bandeja de la red de apoyo"], "a")
 with t1:
     chat, lado = st.columns([1.7, 1], gap="large")
     with lado:

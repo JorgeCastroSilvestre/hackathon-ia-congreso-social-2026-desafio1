@@ -158,7 +158,7 @@ m2.metric("Alertas (no esperan cupo)", n_alertas)
 m3.metric("Decisiones registradas", f"{hechas} de {len(cola)}")
 m4.metric("Consultas a la IA", f"{ia.usadas()} de {ia.limite}")
 
-t1, t2, t3 = st.tabs(["1 · Lista de la semana", "2 · Ficha y decisión", "3 · ¿A quién no estamos viendo?"])
+t1, t2, t3 = N.pestanas(["1 · Lista de la semana", "2 · Ficha y decisión", "3 · ¿A quién no estamos viendo?"], "b")
 with t1:
     st.markdown(N.badge("Se compara a cada persona con sus propias semanas anteriores", "teal") + N.badge("El orden no usa sexo, edad ni sector", "teal") +
                 N.badge("El puntaje no es un diagnóstico", "gray") + N.badge("Solo lee las casillas marcadas, no las notas", "amber"), unsafe_allow_html=True)
@@ -170,7 +170,7 @@ with t1:
     solo = f2.toggle("Solo pendientes")
     vista = cola[cola.sector.isin(fs) if fs else cola.sector.notna()]
     if solo: vista = vista[vista.decision == "Pendiente"]
-    st.dataframe(vista.assign(Alerta=vista.alerta.map(lambda a: f"Alerta: {a}" if a else ""))[
+    st.dataframe(vista.assign(Alerta=vista.alerta)[
         ["n", "id_persona", "nombre_ficticio", "sector", "Alerta", "por_que", "puntaje", "decision"]].rename(columns={
         "n": "N°", "id_persona": "Persona", "nombre_ficticio": "Nombre", "sector": "Sector", "por_que": "¿Por qué aparece?", "puntaje": "Puntaje", "decision": "Decisión"}),
         hide_index=True, width="stretch", height=460,

@@ -127,6 +127,9 @@ div[data-testid="stMetricValue"]{color:var(--azul);font-family:'Source Serif 4',
 .stTabs [data-baseweb="tab"]{background:transparent;padding:8px 18px;color:var(--gris);font-weight:600}
 .stTabs [aria-selected="true"]{color:var(--azul) !important}
 .stTabs [data-baseweb="tab-highlight"]{background-color:var(--oro) !important;height:3px}
+div[class*="st-key-oculto_"]{display:none !important}
+div[class*="st-key-nav_"]{border-bottom:1px solid var(--borde);padding-bottom:10px;margin-bottom:6px}
+div[class*="st-key-nav_"] button{border-radius:4px !important;font-weight:600}
 div[data-testid="stAlert"]{border-radius:6px}
 .stButton button,.stDownloadButton button{border-radius:4px;font-weight:600}
 section[data-testid="stSidebar"]{background:#fff;border-right:1px solid var(--borde)}
@@ -136,6 +139,13 @@ section[data-testid="stSidebar"]{background:#fff;border-right:1px solid var(--bo
 
 def estilos():
     st.markdown(_CSS, unsafe_allow_html=True)
+
+def pestanas(opciones, clave):
+    """Reemplazo de st.tabs que recuerda la sección abierta: st.tabs vuelve a la primera pestaña después de
+    presionar un botón. Devuelve un contenedor por opción; los no elegidos se ocultan con CSS."""
+    elegida = st.segmented_control("Sección", opciones, default=opciones[0], key=f"nav_{clave}",
+                                   label_visibility="collapsed") or opciones[0]
+    return [st.container() if o == elegida else st.container(key=f"oculto_{clave}_{i}") for i, o in enumerate(opciones)]
 
 def md(texto) -> str:
     """Texto de la planilla o de la IA → HTML seguro (escapa todo y solo respeta **negritas** y saltos de línea)."""
