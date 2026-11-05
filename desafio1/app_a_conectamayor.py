@@ -96,14 +96,14 @@ _EMERGENCIA += [
 ]
 MARCA = re.compile(r"\[(MALTRATO|EMERGENCIA)\]")
 MENSAJE_MALTRATO = ("Gracias por contarlo. Nadie tiene derecho a maltratar, amenazar ni quitarle su dinero a una persona mayor.\n\n"
-                    "• **Fono Mayor 800 400 035** (gratuito, SENAMA): orienta y recibe denuncias de maltrato, abandono o abuso económico.\n"
-                    "• Si hay peligro ahora: **133 (Carabineros)**.\n\n"
+                    "- **Fono Mayor 800 400 035** (gratuito, SENAMA): orienta y recibe denuncias de maltrato, abandono o abuso económico.\n"
+                    "- Si hay peligro ahora: **133 (Carabineros)**.\n\n"
                     "_En un servicio real, este caso pasaría a una persona de la red de apoyo, que se comunicaría con cuidado y respetando su decisión. "
                     "En esta demostración solo queda en la bandeja simulada: no se contacta a nadie._")
 MENSAJE_EMERGENCIA = ("Esto necesita ayuda de una persona ahora, no de una IA.\n\n"
-                      "• **Emergencia de salud** (caída con dolor fuerte, dolor en el pecho, dificultad para respirar o hablar): llame al **131 (SAMU)**.\n"
-                      "• Si piensa en hacerse daño: **Línea de Prevención del Suicidio \\*4141** (gratuita) o **Salud Responde 600 360 7777**.\n"
-                      "• Peligro inmediato: **133 (Carabineros)**.\n\n"
+                      "- **Emergencia de salud** (caída con dolor fuerte, dolor en el pecho, dificultad para respirar o hablar): llame al **131 (SAMU)**.\n"
+                      "- Si piensa en hacerse daño: **Línea de Prevención del Suicidio \\*4141** (gratuita) o **Salud Responde 600 360 7777**.\n"
+                      "- Peligro inmediato: **133 (Carabineros)**.\n\n"
                       "_En un servicio real, este caso pasaría de inmediato a una persona de la red de apoyo. "
                       "En esta demostración solo queda en la bandeja simulada: no se contacta a nadie._")
 def protocolo(t):
@@ -156,7 +156,7 @@ def reiniciar():
     ss["_n_conv"] = ss.get("_n_conv", 0) + 1
 
 def nuevo_caso(pid, c, origen):
-    cid = ss.setdefault("_caso_id", "C-" + uuid.uuid4().hex)
+    cid = ss.setdefault("_caso_id", "C-" + uuid.uuid4().hex[:6].upper())  # corto y legible; único dentro del equipo
     existente = next((b for b in bandeja if b["caso"] == cid), None)
     pendiente = ss.get("_casos_por_guardar", {}).get(cid)
     if existente and not pendiente and origen == "conversación":
@@ -375,7 +375,7 @@ with t2:
         etiqueta, color = URG.get(b["urgencia"], (b["urgencia"], "gray"))
         N.tarjeta(f"{cid} · {b['persona']} · {b['conversa']} · {b['origen']}",
                   N.badge(etiqueta, color) + "".join(N.badge(n.strip(), "teal") for n in b["necesidades"].split(",") if n.strip()) +
-                  f"<br><b>Servicio sugerido:</b> {N.md(SERV.get(b['servicio_sugerido'], 'ninguno'))}<br><b>Resumen de la IA (verifícalo):</b> {N.md(b['resumen_ia'])}",
+                  f"<br><b>Servicio sugerido:</b> {N.md(SERV.get(b['servicio_sugerido'], 'ninguno'))}<br><b>{'Resumen de la conversación (verifícalo)' if b['origen'] == 'conversación' else 'Resumen del protocolo fijo'}:</b> {N.md(b['resumen_ia'])}",
                   "bad" if b["urgencia"] in ("CRISIS", "MALTRATO") else "warn" if b["urgencia"] == "alta" else "info")
         if b["urgencia"] == "MALTRATO":
             st.warning("Posible maltrato: antes de contactar, piensa si el contacto podría ponerla en riesgo (por ejemplo, si quien maltrata contesta el teléfono).")

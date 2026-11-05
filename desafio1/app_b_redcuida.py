@@ -163,7 +163,7 @@ N.recorrido(
     ["La IA puede equivocarse: la propuesta debe revisarse antes de usarla.",
      "El puntaje solo lee las casillas marcadas; las notas pueden tener señales adicionales.",
      "Menos registros no significa necesariamente menos necesidad.",
-     "Bajo la propuesta se indica si es preparada de ejemplo o generada por IA.",
+     "Bajo la propuesta se indica su origen: IA, ejemplo preparado o edición humana.",
      "La decisión final siempre es humana."])
 N.como_adaptar(
     ["**Usuario, tono y largo de respuesta** (`usuario`, `tono`, `largo_respuesta`).",
